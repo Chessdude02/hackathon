@@ -42,10 +42,12 @@ def test_short_history_clients_get_no_loss_label(run):
             assert c["loss_making"] in (True, False)
 
 
-def test_big_loss_clients_are_loss_making(run):
+def test_most_big_loss_clients_are_loss_making(run):
+    """Not all: noise, repricing or one-off projects can lift a mildly
+    loss-making client just above zero (D-13)."""
     _, truth, _ = run
     big = [c for c in truth["clients"].values() if "big_loss" in c["types"]]
-    assert big and all(c["loss_making"] for c in big)
+    assert big and sum(bool(c["loss_making"]) for c in big) > len(big) / 2
 
 
 def test_request_labels_line_up_with_rows(run):
@@ -80,3 +82,41 @@ def test_label_sheet_has_150_rows_and_no_labels(run):
 def test_client_count_outside_range_is_refused(tmp_path):
     with pytest.raises(ValueError):
         generate(SEED, 30, tmp_path / "d", tmp_path / "t")
+
+
+def test_planted_changes_are_recorded_per_client(run):
+    _, truth, _ = run
+    clients = truth["clients"].values()
+    for c in clients:
+        ev = c["events"]
+        assert ev["first_month"] <= ev["last_month"]
+        if "late_scope_creep" in c["types"]:
+            assert "scope_creep_from" in ev
+        if "repriced" in c["types"]:
+            assert "repriced_in" in ev and "reprice_factor" in ev
+        if "recovered_payer" in c["types"]:
+            assert "pays_on_time_from" in ev
+    assert any(c["events"]["first_month"] > truth["months"][0] for c in clients)  # some join late
+
+
+def test_staff_change_happens_at_the_planted_month(run):
+    data, truth, _ = run
+    change = truth["agency_events"]["staff_change"]
+    te = pd.read_csv(data / "header_variants" / "snake" / "time_entries.csv")
+    month = te["date"].str[:7]
+    assert (te.loc[month >= change["month"], "staff_member"] != change["leaves"]).all()
+    assert (te.loc[month < change["month"], "staff_member"] != change["replaced_by"]).all()
+
+
+def test_staff_costs_include_the_new_hire(run):
+    data, truth, _ = run
+    costs = pd.read_csv(data / "staff_costs.csv")
+    assert truth["agency_events"]["staff_change"]["replaced_by"] in set(costs["staff"])
+
+
+def test_months_of_data_matches_profit_months(run):
+    _, truth, _ = run
+    for c in truth["clients"].values():
+        months = sorted(c["profit_by_month"])
+        first, last = pd.Period(months[0], "M"), pd.Period(months[-1], "M")
+        assert c["months_of_data"] == (last - first).n + 1

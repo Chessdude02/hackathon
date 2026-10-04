@@ -23,7 +23,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-09 | 2026-10-04 | Fixed out-of-scope list | Assumed | No |
 | D-10 | 2026-10-04 | Call graph generated with pyan3 as a text edge list | Assumed | Yes (toy code only) |
 | D-11 | 2026-10-04 | Fixed input schema and profit definitions | Assumed | No |
-| D-12 | 2026-10-04 | Data generator design | Assumed | Yes (seed 42 run) |
+| D-12 | 2026-10-04 | Data generator design | Superseded by D-13 | Yes (seed 42 run) |
+| D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
 
 ---
 
@@ -230,7 +231,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-12: Data generator design
 - **ID:** D-12
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Superseded by D-13
 - **Context:** No real data (D-08). Benchmarks 2 to 5 need data with known answers.
 - **Options considered:**
   1. A seeded generator in `generator/` with planted client types, planted data problems, 10 header styles and a truth file kept apart from the data.
@@ -250,7 +251,32 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Expected effect:** Planted loss-making clients rank near the bottom by profit and near the top by revenue.
 - **Actual measured effect:** 50 clients, 14 loss-making by the D-11 rule (all 5 "looks big" clients, 6 of 7 scope creep, 2 of 5 decline, the no-invoice client), 2 unlabelled new clients. The 5 "looks big" clients are revenue ranks 1 to 5 of 49 invoiced clients. 3,029 requests (69% in-scope, 17% unclear, 15% extra). Run time 7.6 seconds. Because there are 14 loss-making clients, a bottom 10 can find at most 71% of them in benchmark 2.
 - **Evidence:** `python scripts/generate_data.py --out data/generated --seed 42`, run on 2026-10-04. Label sheet from the same run: 150 rows, 50 per generator label.
-- **Related decisions:** D-08, D-11
+- **Related decisions:** D-08, D-11, D-13
+
+## D-13: Make generated trends less clean
+- **ID:** D-13
+- **Date:** 2026-10-04
+- **Status:** Assumed
+- **Context:** Under D-12, every client kept one type for all 24 months, every trend followed one smooth formula, no client left, and nothing affected all clients at once. Month-to-month noise was already large, but the shapes were too easy for a model to learn. Two items promised in D-12's design, one-off projects and staff holidays, had not been built.
+- **Options considered:**
+  1. Keep D-12 as it is.
+  2. Add type changes partway through, step changes, clients joining and leaving, agency-wide events, noise that carries over from month to month, one-off projects and staff holidays.
+  3. Option 2 plus a yearly staff pay rise.
+- **Decision:** Option 2. Everything in D-12 stays except these additions (settings in `generator/params.py`):
+  - 25% of healthy clients develop scope creep and 15% start to decline, starting in a random month from 12 to 20. 30% of slow payers start paying on time from month 10 to 18.
+  - Scope creep starts with a jump of up to 25% in hours, then grows.
+  - 30% of clients get one fee change of ×0.85 to ×1.20 (repricing).
+  - 30% of clients start between month 1 and 16. 12% leave between month 10 and 21.
+  - July and August hours ×0.85, as well as December ×0.75. One staff member leaves at month 12 and a new hire with a different cost takes over their work. Each staff member has 2 holiday months a year, in which half their work moves to a colleague.
+  - Busy and quiet spells: each month's hours carry over 60% of the previous month's deviation.
+  - One-off projects: a 3% chance per client per month of an extra invoice ($2,000 to $10,000) with matching extra hours.
+  - The truth file records each client's planted changes by month (`events`) and the agency-wide events.
+- **Factors that led to it:** A forecast that beats the baseline only on smooth trends proves nothing. Real clients change partway through, get repriced and leave.
+- **Trade-offs accepted:** Benchmarks get harder, and the forecast will likely do worse against the baseline. The planted type no longer guarantees the outcome: the loss-making label comes from computed profit, as in D-11. Option 3 was rejected because the settings hold one hourly cost per staff member, so a pay rise would make the planted truth disagree with any cost engine by design. Every setting is still a guess, not taken from real agencies.
+- **Expected effect:** Fewer clients follow a clean single-shape trend; benchmark 2 and 3 scores reflect noisier, more realistic data.
+- **Actual measured effect:** Seed 42: 15 loss-making clients (D-12: 14). 4 of 5 "looks big" clients are loss-making; the fifth ended at +$933 over 12 months through noise and two one-off projects. These 5 are still revenue ranks 1 to 5. 12 of 23 healthy clients developed late scope creep. Over 300 seeds the rate is 23%, so seed 42 is high by chance; it was kept rather than choosing a seed. 2 clients left early, 15 were repriced, 3 slow payers recovered, 28 one-off projects. The typical month-to-month change in profit rose from 36% to 46% of the average for healthy clients, and the direction flipped 62% of the time (D-12: 68%), meaning more lasting swings.
+- **Evidence:** `python scripts/generate_data.py --out data/generated --seed 42`, run on 2026-10-04, and a 300-seed count of `make_clients` on the same day.
+- **Related decisions:** D-12, D-11, D-06
 
 ---
 

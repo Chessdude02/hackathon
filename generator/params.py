@@ -32,7 +32,6 @@ CREEP_MONTHLY_GROWTH = (0.03, 0.06)
 DECLINE_MONTHLY_DROP = (0.02, 0.04)
 SLOW_PAY_DAYS = (60, 120)
 NORMAL_PAY_DAYS = (10, 35)
-HOUR_NOISE = 0.15
 DECEMBER_FACTOR = 0.75
 
 # Planted data problems (counts).
@@ -44,3 +43,38 @@ N_SKIPPED_INVOICES = 3
 N_BLANK_TASK_TYPE = 3
 N_BLANK_CHANNEL = 2
 ALT_DATE_FORMAT_SHARE = 0.10
+
+# --- Realism additions (D-13) ---
+# Clients that change type partway through.
+P_HEALTHY_TO_CREEP = 0.25       # healthy client develops scope creep
+P_HEALTHY_TO_DECLINE = 0.15     # healthy client starts to decline
+LATE_SWITCH_MONTHS = (12, 20)   # month index where the change starts
+P_SLOW_PAYER_RECOVERS = 0.3
+RECOVER_MONTHS = (10, 18)
+CREEP_START_JUMP = (1.0, 1.25)  # one-off jump in hours when creep starts
+
+# One-off fee change (repricing) for some clients.
+P_FEE_STEP = 0.3
+FEE_STEP_RANGE = (0.85, 1.20)
+
+# Clients joining and leaving.
+P_LATE_START = 0.3
+LATE_START_MONTHS = (1, 16)
+P_CHURN = 0.12
+CHURN_MONTHS = (10, 21)
+
+# Agency-wide events.
+SUMMER_FACTOR = 0.85            # July and August hours
+STAFF_LEAVER = "Tom Becker"     # leaves at STAFF_CHANGE_MONTH
+STAFF_HIRE = ("Kai Moreno", "developer")
+STAFF_CHANGE_MONTH = 12
+HOLIDAY_MONTHS_PER_YEAR = 2     # per staff member; half their work moves to a colleague
+
+# Busy and quiet spells: noise that carries over from month to month.
+SPELL_PERSISTENCE = 0.6
+SPELL_SD = 0.12
+MONTH_NOISE_SD = 0.08
+
+# One-off projects.
+P_ONE_OFF_PROJECT = 0.03        # per client per month
+ONE_OFF_VALUE = (2000, 10000)

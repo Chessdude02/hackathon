@@ -251,14 +251,16 @@ Same steps, in `src/clientprofit/scope/`, with a class that has `label_requests(
 ## 11. Data generator (Verified on 2026-10-04)
 
 Command: `python scripts/generate_data.py --out data/generated --seed 42`.
-Same seed, same files. Takes about 8 seconds for 50 clients.
+Same seed, same files. Takes about 8 seconds for 50 clients. Design: D-12 as changed by D-13.
 
 | Function | File | What it does |
 |---|---|---|
 | `generate(seed, n_clients, out_dir, truth_dir)` | `generator/generate.py` | Runs every step below and writes all files. Refuses `n_clients` outside 40-60 |
-| `make_staff` | `generator/world.py` | 12 staff with hourly costs |
-| `make_clients` | `generator/world.py` | Clients with planted types, fees and payment habits |
-| `simulate` | `generator/world.py` | Clean invoices, time entries and requests month by month |
+| `make_staff` | `generator/world.py` | 12 staff plus the new hire, with hourly costs |
+| `make_holidays` | `generator/world.py` | Two holiday months a year per staff member |
+| `make_clients` | `generator/world.py` | Clients with planted types, later type changes, repricing, joining and leaving, payment habits |
+| `simulate` | `generator/world.py` | Clean invoices, time entries and requests month by month, with spells, seasons, holidays, the staff change and one-off projects |
+| `client_events` | `generator/world.py` | Each client's planted changes by month, for the truth file |
 | `add_messages` | `generator/world.py` | Adds message text to each request |
 | `truth_profit` | `generator/world.py` | Planted true profit per client per month, using the D-11 rules |
 | `load_bank`, `make_message` | `generator/messages.py` | Message bank if present, otherwise templates |
@@ -270,10 +272,10 @@ Files written:
 | File | Contents |
 |---|---|
 | `<out>/invoices.csv`, `time_entries.csv`, `requests.csv` | Main files, "title" header style, with planted problems |
-| `<out>/staff_costs.csv` | Staff name and hourly cost, for the settings screen |
+| `<out>/staff_costs.csv` | Staff name and hourly cost, for the settings screen. Includes the new hire |
 | `<out>/header_variants/<style>/*.csv` | The same data in each of the 10 header styles (benchmark 5) |
 | `<out>/label_sheet.csv` | 150 messages, 50 per generator label, label column blank (benchmark 4) |
-| `<truth>/truth_seed<seed>.json` | Client types, true monthly profit, loss-making labels, request labels by row, header mappings, planted problems, message source |
+| `<truth>/truth_seed<seed>.json` | Client types, each client's planted changes by month, agency-wide events, true monthly profit, loss-making labels, request labels by row, header mappings, planted problems, message source |
 
 Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 

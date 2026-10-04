@@ -8,7 +8,8 @@ import pandas as pd
 from generator import params as P
 from generator.messages import load_bank
 from generator.messy import HEADER_STYLES, MAIN_STYLE, plant_defects, write_style
-from generator.world import add_messages, make_clients, make_staff, simulate, truth_profit
+from generator.world import (add_messages, client_events, make_clients, make_holidays, make_staff,
+                             months, simulate, truth_profit)
 
 LABEL_SHEET_SIZE = 150
 
@@ -35,7 +36,8 @@ def generate(seed, n_clients, out_dir, truth_dir):
 
     staff = make_staff(rng)
     clients = make_clients(rng, n_clients, staff)
-    inv, te, rq = simulate(rng, clients)
+    holidays = make_holidays(rng, staff)
+    inv, te, rq = simulate(rng, clients, holidays, staff)
     bank, bank_source = load_bank()
     rq = add_messages(rng, rq, bank)
     profit = truth_profit(inv, te, staff)
@@ -52,12 +54,14 @@ def generate(seed, n_clients, out_dir, truth_dir):
     truth_clients = {}
     for c in clients:
         rows = profit[profit["client"] == c["client"]]
-        n_months = c["end"] - c["start"] + 1
+        # D-11: months from the first to the last month with any invoice or hours.
+        n_months = (rows["month"].max() - rows["month"].min()).n + 1
         p12 = float(rows[rows["month"].isin(last12)]["profit"].sum())
         truth_clients[c["client"]] = {
             "types": c["types"],
             "billing": c["billing"],
             "months_of_data": n_months,
+            "events": client_events(c),
             "profit_last_12m": round(p12, 2),
             # D-11: clients under the minimum get no loss-making label.
             "loss_making": (p12 < 0) if n_months >= P.MIN_MONTHS else None,
@@ -70,6 +74,12 @@ def generate(seed, n_clients, out_dir, truth_dir):
         "months": [str(m) for m in pd.period_range(P.START_MONTH, periods=P.N_MONTHS, freq="M")],
         "generator_settings": {"overhead_multiplier": P.OVERHEAD, "late_payment_annual_rate": P.LATE_RATE,
                                "payment_terms_days": P.PAYMENT_TERMS_DAYS},
+        "agency_events": {
+            "staff_change": {"leaves": P.STAFF_LEAVER, "replaced_by": P.STAFF_HIRE[0],
+                             "month": str(months()[P.STAFF_CHANGE_MONTH])},
+            "holidays": sorted(f"{name} {months()[m]}" for name, m in holidays),
+            "slow_months": "July and August hours x0.85, December x0.75",
+        },
         "message_source": bank_source,
         "clients": truth_clients,
         "request_labels": rq_m["_label"].tolist(),
