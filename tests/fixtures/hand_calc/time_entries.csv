@@ -1,0 +1,39 @@
+client,staff,work_date,hours,task_type,billable
+Alpha Media,Ana,2026-01-10,20,design,TRUE
+Alpha Media,Ana,2026-02-10,20,design,TRUE
+Alpha Media,Ana,2026-03-10,20,design,TRUE
+Bravo Labs,Ben,2026-01-12,15,development,TRUE
+Bravo Labs,Ben,2026-02-12,15,development,TRUE
+Bravo Labs,Ben,2026-03-12,10,development,TRUE
+Bravo Labs,Cara,2026-03-13,5,meetings,FALSE
+Charlie Co,Ana,2025-12-05,30,design,TRUE
+Charlie Co,Ana,2026-01-05,30,design,TRUE
+Charlie Co,Ana,2026-02-05,30,design,TRUE
+Delta Foods,Cara,2025-11-20,25,copywriting,TRUE
+Delta Foods,Cara,2025-12-20,25,copywriting,TRUE
+Delta Foods,Cara,2026-01-20,25,copywriting,TRUE
+Echo Studio,Ana,2026-01-08,10,design,TRUE
+Echo Studio,Ben,2026-01-09,15,revisions,FALSE
+Echo Studio,Ana,2026-02-08,10,design,TRUE
+Echo Studio,Ben,2026-02-09,15,revisions,FALSE
+Echo Studio,Ana,2026-03-08,10,design,TRUE
+Echo Studio,Ben,2026-03-09,15,revisions,FALSE
+Foxtrot Dental,Cara,2026-01-15,20,social posts,TRUE
+Foxtrot Dental,Cara,2026-02-15,20,social posts,TRUE
+Foxtrot Dental,Cara,2026-03-15,20,social posts,TRUE
+Golf Bakery,Cara,2026-01-20,6,admin,FALSE
+Golf Bakery,Cara,2026-02-20,4,admin,FALSE
+Golf Bakery,Cara,2026-03-20,5,admin,FALSE
+Hotel Realty,Ana,2026-02-03,12,design,TRUE
+Hotel Realty,Ana,2026-03-03,12,design,TRUE
+India Motors,Ana,2026-01-11,10,design,TRUE
+India Motors,Ben,2026-01-12,20,development,TRUE
+India Motors,Cara,2026-01-13,8,meetings,FALSE
+India Motors,Ana,2026-02-11,10,design,TRUE
+India Motors,Ben,2026-02-12,20,development,TRUE
+India Motors,Ben,2026-03-12,25,development,TRUE
+India Motors,Cara,2026-03-13,5,meetings,FALSE
+Juliet Law,Ben,2026-01-20,10,strategy,TRUE
+Juliet Law,Ben,2026-02-20,10,strategy,TRUE
+Juliet Law,Ben,2026-02-21,-2,strategy,TRUE
+Juliet Law,Ben,2026-03-20,10,strategy,TRUE

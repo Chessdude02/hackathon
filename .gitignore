@@ -1,0 +1,12 @@
+# Secrets: API keys are read from environment variables only.
+.env
+.env.*
+
+# Inputs and results are regenerated, never committed.
+data/
+out/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

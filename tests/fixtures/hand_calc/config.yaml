@@ -1,0 +1,11 @@
+# Settings for the hand-calculation check (benchmark 1). Not real figures.
+staff_costs:
+  Ana: 50
+  Ben: 80
+  Cara: 40
+overhead_multiplier: 1.5
+target_margin: 0.30
+late_payment_annual_rate: 0.073   # 0.073 / 365 = 0.0002 per dollar per day
+payment_terms_days: 30
+unpaid_warning_days: 90
+min_months_for_ranking: 3
