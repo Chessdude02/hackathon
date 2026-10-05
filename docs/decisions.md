@@ -26,6 +26,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-12 | 2026-10-04 | Data generator design | Superseded by D-13 | Yes (seed 42 run) |
 | D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
 | D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | Yes (20-message smoke test) |
+| D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Assumed | No |
 
 ---
 
@@ -293,7 +294,30 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Expected effect:** Under 3 seconds per call; at least 19 of 20 replies parse to a label.
 - **Actual measured effect:** `Qwen/Qwen2.5-14B-Instruct`, 20 label-sheet messages, one call at a time: 20 of 20 calls succeeded, 20 of 20 replies parsed to a valid label. Median 1.24 s per call, slowest 1.76 s, 25.4 s in total. Labels given: 9 in-scope, 6 extra unpaid, 5 unclear. At this rate, labelling all 3,029 generated requests one at a time would take about 62 minutes, which does not fit benchmark 7 (under 60 seconds from upload to ranked list) unless requests are labelled several per call, in parallel, or once and cached. Accuracy is not measured here; it needs the teammate's labels (benchmark 4). The messages are still template text, so accuracy on them will flatter the model.
 - **Evidence:** `python scripts/llm_smoke_test.py --model Qwen/Qwen2.5-14B-Instruct`, run on 2026-10-05 with no `FEATHERLESS_API_KEY` set (proxy-supplied key), on data from `python scripts/generate_data.py --out data/generated --seed 42`. Before that, one curl call to `/v1/chat/completions` with a placeholder key returned HTTP 200 in 1.7 s. `tests/test_llm.py` passes against a local fake server.
-- **Related decisions:** D-07, D-12
+- **Related decisions:** D-07, D-12, D-15
+
+## D-15: Label requests once, save labels, ranked list never waits for labels
+- **ID:** D-15
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** D-14 measured 1.24 s per labelling call. Labelling all 3,029 generated requests one at a time would take about 62 minutes, far over the 60-second target in benchmark 7.
+- **Options considered:**
+  1. Label each message once, save the label, and reuse it. Only new messages are labelled live.
+  2. Send 20 to 30 messages per call.
+  3. Run calls in parallel up to the plan's concurrency limit.
+- **Decision:** Option 1, approved by the team lead with these conditions:
+  - Saved labels are keyed by message text. Messages not in the saved set are labelled live, in parallel, with a progress indicator.
+  - The ranked list must not depend on labels. It is shown first; labels and anything built on them fill in afterwards.
+  - Benchmark 7 measures upload to ranked list only. Labelling N new messages is timed and reported separately.
+  - The README states that the demo data was labelled ahead of time. This is added when the demo labels are actually made, not before.
+
+  Options 2 and 3 are set aside for now. Parallel calls are still used for new messages, as the first condition requires.
+- **Factors that led to it:** No risk to label accuracy. Most messages an owner uploads again were already labelled.
+- **Trade-offs accepted:** A first upload of a new agency's history is still slow to label; the ranked list does not wait, but scope-creep figures and the "cut scope" recommendation appear only when labelling finishes. Keying by message text alone means the same text gets the same label for every client; this holds only while the model sees no client-specific context (see the open "services covered" question). Saving labels means the saved file must be treated as data that can go stale if the prompt or model changes; the key must then include the model and prompt version, or the file is rebuilt.
+- **Expected effect:** Upload to ranked list under 60 seconds regardless of how many requests there are. Re-uploading already-labelled data needs no LLM calls.
+- **Actual measured effect:** Not measured yet. Nothing is built.
+- **Evidence:** None yet. The 62-minute figure comes from D-14's smoke test.
+- **Related decisions:** D-14, D-07
 
 ---
 

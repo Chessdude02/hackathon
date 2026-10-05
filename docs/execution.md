@@ -124,12 +124,13 @@ What happens when the owner uploads files and clicks Run:
 3. The screen shows the mapping. The owner confirms or corrects it.
 4. `validate` lists problems. Nothing is dropped without the owner seeing it.
 5. `cost_engine` works out revenue, cost of hours and cost of late payment per client per month.
-6. `scope` labels each request as in-scope, extra unpaid work or unclear.
-7. `features` builds the client-month table from steps 5 and 6.
-8. `forecast` predicts next-quarter margin for each client with enough history.
-9. `recommend` picks one action per client and works out its dollar effect.
-10. `explain` writes two or three sentences per client and checks every number against the computed table.
-11. `app.py` shows the ranked list. Clicking a client shows the detail and the rows behind each figure.
+6. `app.py` shows the ranked list straight away. It uses no request labels (D-15). Benchmark 7 stops the clock here.
+7. `scope` looks up saved labels by message text and labels the rest live, in parallel, with a progress indicator. Labelling is timed separately.
+8. `features` builds the client-month table from steps 5 and 7.
+9. `forecast` predicts next-quarter margin for each client with enough history.
+10. `recommend` picks one action per client and works out its dollar effect.
+11. `explain` writes two or three sentences per client and checks every number against the computed table.
+12. The screen fills in labels, forecasts, recommendations and explanations as they arrive. Clicking a client shows the detail and the rows behind each figure.
 
 ## 5. Function call graph
 
@@ -197,6 +198,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed apart as "not enough history" |
 | Forecast model fails or is not available | forecast | Uses the baseline | A note that the baseline was used |
 | LLM call fails during request labelling | scope | Uses the keyword detector | A note that the simpler detector was used |
+| Labelling still running | scope | Ranked list already shown; labels fill in as they finish | A progress indicator; scope-creep figures and "cut scope" marked as pending |
 | LLM call fails during explanation | explain | Uses fixed template text | Plain template text |
 | Number check finds a number not in the tables | explain | Discards the text, uses the template | Plain template text |
 | Config key missing or wrong type | config | Stops at start-up | The key name and the expected type |
