@@ -2,17 +2,18 @@
 
 How the code runs. This file must match the actual code at all times.
 
-> **Current state: mostly PLANNED.** What exists on 2026-10-05: the schema
-> (`src/clientprofit/schema.py`), a loader for schema-named files
-> (`src/clientprofit/ingest.py`), the cost engine (`src/clientprofit/cost_engine.py`),
-> the LLM wrapper (`src/clientprofit/llm.py`), the data generator (`generator/`),
-> the hand-calculation files (`tests/fixtures/hand_calc/`) and the tests for them. Everything else below is still the target design and is marked `Planned`.
+> **Current state: partly built.** What exists on 2026-10-05: the flow from
+> upload to ranked list (`app.py`, `scripts/run_pipeline.py`, `pipeline.py`,
+> `config.py`, `ingest.py`, `validate.py`, `cost_engine.py`), the LLM wrapper
+> (`llm.py`), the data generator (`generator/`), the hand-calculation files and
+> the tests. Request labels, features, forecast, recommendations and
+> explanations are still `Planned`. Everything else below is still the target design and is marked `Planned`.
 > When code for a section lands, replace its content with what the code
 > really does and change the mark to `Verified on <date>`. A section may
 > only be marked `Verified` after its commands were run and its function
 > names were checked against the code.
 >
-> Sections 11 to 14 describe code that exists and are marked `Verified`.
+> Sections 11 to 15 describe code that exists and are marked `Verified`.
 
 ## Keeping this file true
 
@@ -26,25 +27,25 @@ How the code runs. This file must match the actual code at all times.
 |---|---|
 | Install | `pip install -r requirements.txt` |
 | Create generated data | `python scripts/generate_data.py --out data/generated --seed 42` (optional: `--truth data/truth`, `--clients 50`) |
-| Run the app | `streamlit run app.py` |
-| Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` |
+| Run the app | `streamlit run app.py` (verified) |
+| Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` (verified; optional `--exclude-suggested`, `--config`) |
 | Run all benchmarks | `python scripts/run_benchmarks.py --data data/generated --out out/benchmarks.json` |
 | Run tests | `pytest` |
 | Regenerate the call graph | `python scripts/gen_callgraph.py` |
 | Check the call graph is current | `python scripts/gen_callgraph.py --check` |
 
-Verified on 2026-10-04: Install, Create generated data, Run tests, and both call-graph commands. The app, pipeline and benchmark commands do not exist yet.
+Verified on 2026-10-05: Install, Create generated data, Run the app, Run the pipeline with no screen, Run tests, and both call-graph commands. The benchmark command does not exist yet.
 
 ## 2. Folder layout (Planned)
 
 ```
-app.py                      Streamlit entry point: upload, ranked list, client detail
-config.yaml                 All settings (see section 9). Not created yet
+app.py                      Streamlit entry point: upload, mapping, settings, problems, ranked list, client detail. Exists (section 15)
+config.yaml                 All settings (see section 9). Exists
 requirements.txt            Exists
 pyproject.toml              Exists. Only holds pytest settings (src/ and . on the import path)
 src/clientprofit/
-    pipeline.py             run_pipeline(): calls every stage in order
-    config.py               Loads and checks config.yaml
+    pipeline.py             run_pipeline(): calls every stage in order. Exists up to ranking (section 15)
+    config.py               Loads and checks config.yaml. Exists (section 15)
     schema.py               The fixed column names and types for the three inputs. Exists
     ingest.py               Loads CSV files, maps messy columns to the schema, unifies client names. Exists (section 14)
     validate.py             Finds missing clients, date gaps, bad values. Exists (section 14)
@@ -75,7 +76,7 @@ generator/                  Data generator. Never imported by src/clientprofit. 
 scripts/
     generate_data.py        Exists
     llm_smoke_test.py       Exists: times one model on 20 messages (section 13)
-    run_pipeline.py
+    run_pipeline.py         Exists (section 15)
     run_benchmarks.py
     gen_callgraph.py        Exists and tested
 tests/
@@ -84,6 +85,7 @@ tests/
     test_llm.py             Exists: the LLM wrapper against a local fake server
     test_cost_engine.py     Exists: benchmark 1 and one test per calculation
     test_ingest_validate.py Exists: mapping, name cleaning, validation, planted problems found
+    test_app.py             Exists: the Streamlit screen driven headless, demo data to ranked list
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
@@ -206,9 +208,10 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Labelling still running | scope | Ranked list already shown; labels fill in as they finish | A progress indicator; scope-creep figures and "cut scope" marked as pending |
 | LLM call fails during explanation | explain | Uses fixed template text | Plain template text |
 | Number check finds a number not in the tables | explain | Discards the text, uses the template | Plain template text |
-| Config key missing or wrong type | config | Stops at start-up | The key name and the expected type |
+| Config key missing or wrong type | config | `ConfigError` at start-up | The key name and the expected value |
+| Errors remain after the owner's exclusions | pipeline | `run_pipeline` returns `stopped` and does not run the cost engine | The errors to fix or exclude |
 
-## 9. Configuration reference (Planned)
+## 9. Configuration reference (Verified on 2026-10-05: file and checks exist; `forecast`, `scope`, `llm`, `dataset` and `random_seed` are checked but not yet used)
 
 All settings live in `config.yaml`. The defaults below are placeholders chosen
 for a first run. The generator does not read `config.yaml`: its own settings are
@@ -217,7 +220,7 @@ check has its own `tests/fixtures/hand_calc/config.yaml`. They are not based on 
 
 | Key | Meaning | Placeholder default |
 |---|---|---|
-| `staff_costs` | Hourly cost per staff member | none; must be given |
+| `staff_costs` | Hourly cost per staff member | empty; filled on the settings screen, or from `staff_costs.csv` in the data folder |
 | `overhead_multiplier` | Factor applied to the cost of hours to cover overhead | 1.3 |
 | `target_margin` | Margin a client should reach | 0.30 |
 | `late_payment_annual_rate` | Yearly cost of money tied up in unpaid invoices | 0.08 |
@@ -294,7 +297,7 @@ Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 
 ## 12. Tests (Verified on 2026-10-05)
 
-`pytest` runs `tests/test_generator.py`, `tests/test_project_rules.py`, `tests/test_llm.py` and `tests/test_cost_engine.py`.
+`pytest` runs every file in `tests/`: generator, project rules, LLM wrapper, cost engine, ingest and validation, and the app.
 `test_project_rules.py` runs `python scripts/gen_callgraph.py --check`, so a
 stale call graph fails the test run. It also fails if any file in
 `src/clientprofit` imports `generator`.
@@ -356,3 +359,27 @@ duplicate rows, hours but no invoices, requests from unknown clients, months
 with hours but no invoice (warnings), empty optional values, invoices but no
 hours and merged name spellings (info). The engine stops on unreadable values,
 so errors must be fixed or excluded first.
+
+## 15. Pipeline, config and screen (Verified on 2026-10-05)
+
+| Function | File | What it does |
+|---|---|---|
+| `load_config(path=DEFAULT_PATH)`, `check_config(cfg)` | `config.py` | Reads `config.yaml`; a missing key or bad value raises `ConfigError` naming the key |
+| `read_staff_costs(path)` | `config.py` | Reads a CSV with `staff`, `hourly_cost` into a dict |
+| `find_files(folder)` | `pipeline.py` | `{table: path}` for `invoices`, `time_entries`, `requests`, `clients` CSVs present |
+| `load_files(paths)` | `pipeline.py` | Raw tables plus a suggested mapping for each |
+| `apply_mappings(loaded)` | `pipeline.py` | Types each file with its confirmed mapping; raises if a required column is unmapped |
+| `run_pipeline(tables, settings, exclusions=None)` | `pipeline.py` | Unify names, validate, exclude chosen rows, re-validate; stop on errors, else cost engine and ranking. Returns tables, problems, client-month, totals, ranked, unranked, as-of date, `seconds_to_ranked` |
+| `suggested_exclusions(problems)` | `pipeline.py` | Rows of every problem marked `suggest_exclude` |
+
+The screen (`app.py`): choose demo data or upload files, then (1) check or
+change the suggested mapping per file, (2) costs and rules with an editable
+staff cost table, (3) problems, each with an "exclude these rows" box (ticked
+by default only where suggested), then "Rank clients" shows (4) the ranked
+list, unranked clients apart, and a client detail with the rows behind each
+month. `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
+`tests/test_app.py`).
+
+Measured on seed 42 data, 50 clients: `scripts/run_pipeline.py` loads, maps,
+validates and ranks in 0.88 s; on the screen, "Rank clients" to ranked list
+took 0.53 s. Request labelling is not in this path (D-15).

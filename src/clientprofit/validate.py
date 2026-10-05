@@ -69,6 +69,8 @@ def _duplicates(tables):
     out = []
     for table, df in tables.items():
         cols = [c for c in schema.TABLES.get(table, {}) if c in df.columns]
+        if not cols:
+            continue
         dup = df.duplicated(subset=cols, keep="first")
         if dup.any():
             rows = df.loc[dup, SRC_ROW].tolist()

@@ -1,0 +1,20 @@
+# All settings (docs/execution.md section 9). Placeholder defaults for a first
+# run; not based on any real agency's figures.
+staff_costs: {}                   # name: hourly cost. Filled on the settings screen or from staff_costs.csv
+overhead_multiplier: 1.3
+target_margin: 0.30
+late_payment_annual_rate: 0.08
+payment_terms_days: 30
+unpaid_warning_days: 90
+min_months_for_ranking: 3
+forecast:
+  model: baseline
+  horizon_months: 3
+  test_months: 6
+scope:
+  detector: keyword
+llm:
+  provider: featherless
+  model: Qwen/Qwen2.5-14B-Instruct
+dataset: generated
+random_seed: 42

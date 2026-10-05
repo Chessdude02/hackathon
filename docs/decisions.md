@@ -319,8 +319,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Factors that led to it:** No risk to label accuracy. Most messages an owner uploads again were already labelled.
 - **Trade-offs accepted:** A first upload of a new agency's history is still slow to label; the ranked list does not wait, but scope-creep figures and the "cut scope" recommendation appear only when labelling finishes. Keying by message text alone means the same text gets the same label for every client; this holds only while the model sees no client-specific context (see the open "services covered" question). Saving labels means the saved file must be treated as data that can go stale if the prompt or model changes; the key must then include the model and prompt version, or the file is rebuilt.
 - **Expected effect:** Upload to ranked list under 60 seconds regardless of how many requests there are. Re-uploading already-labelled data needs no LLM calls.
-- **Actual measured effect:** Not measured yet. Nothing is built.
-- **Evidence:** None yet. The 62-minute figure comes from D-14's smoke test.
+- **Actual measured effect:** Upload to ranked list, with no labelling in the path: 0.88 s for 50 clients (load, map, validate, rank) from the command line; 0.53 s from "Rank clients" to the ranked list on the screen. Saving labels and labelling new messages are not built yet.
+- **Evidence:** `python scripts/run_pipeline.py --data data/generated --out out/` on seed 42 data, and the screen driven with Playwright, both on 2026-10-05. The 62-minute figure comes from D-14's smoke test.
 - **Related decisions:** D-14, D-07, D-17
 
 ## D-16: Worst-case profit removes an overdue invoice completely

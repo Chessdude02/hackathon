@@ -28,7 +28,8 @@ def _to_bool(value):
 def coerce_types(df, table, src_file):
     """Give each schema column its type and add the tracking columns."""
     out = pd.DataFrame(index=df.index)
-    for col, kind in schema.TABLES[table].items():
+    columns = {**schema.TABLES, **schema.OPTIONAL_TABLES}[table]
+    for col, kind in columns.items():
         raw = df[col] if col in df.columns else pd.Series(None, index=df.index, dtype=object)
         if kind == "date":
             out[col] = pd.to_datetime(raw.replace("", None), errors="coerce", format="mixed")
