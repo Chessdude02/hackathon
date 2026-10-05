@@ -20,7 +20,7 @@ Use every row as written, including the negative-hours row.
 
 ## Rules (D-11 in docs/decisions.md)
 
-- **As-of date:** the latest date that appears anywhere in the three files. Here it is 2026-03-31.
+- **As-of date:** the latest invoice, payment, work or request date in the three files (due dates do not count, D-18). Here it is 2026-03-31.
 - **Revenue month:** the month of the invoice date, not the payment date.
 - **Labour cost** for a row = hours × that staff member's hourly cost × `overhead_multiplier`.
   Non-billable hours count. Booked in the month of the work date.

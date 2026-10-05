@@ -28,6 +28,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | Yes (20-message smoke test) |
 | D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Assumed | No |
 | D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Assumed | No |
+| D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Assumed | No |
+| D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Assumed | Yes (benchmark 1) |
 
 ---
 
@@ -229,7 +231,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Expected effect:** The cost engine matches the hand-calculated file in `tests/fixtures/hand_calc/` exactly (benchmark 1).
 - **Actual measured effect:** Not measured yet. The expected answers have not been filled in.
 - **Evidence:** None yet.
-- **Related decisions:** D-05, D-07, D-12, D-16
+- **Related decisions:** D-05, D-07, D-12, D-16, D-18
 
 ## D-12: Data generator design
 - **ID:** D-12
@@ -318,7 +320,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Expected effect:** Upload to ranked list under 60 seconds regardless of how many requests there are. Re-uploading already-labelled data needs no LLM calls.
 - **Actual measured effect:** Not measured yet. Nothing is built.
 - **Evidence:** None yet. The 62-minute figure comes from D-14's smoke test.
-- **Related decisions:** D-14, D-07
+- **Related decisions:** D-14, D-07, D-17
 
 ## D-16: Worst-case profit removes an overdue invoice completely
 - **ID:** D-16
@@ -335,6 +337,44 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Not measured yet.
 - **Evidence:** `tests/fixtures/hand_calc/hand_calc_workbook_answered.xlsx` (original hand answer 1,372.80) and `tests/fixtures/hand_calc/expected_client_totals.csv` (1,500.00 under this rule).
 - **Related decisions:** D-11
+
+## D-17: Optional "services covered" per client, given to the request labeller
+- **ID:** D-17
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** The request labeller decides "in scope" from wording alone, without knowing what each client pays for. The same message can be routine for one client and extra work for another.
+- **Options considered:**
+  1. Keep labelling from wording alone.
+  2. Add an optional free-text `services_covered` per client and pass it to the model with each message.
+- **Decision:** Option 2, approved by the team lead on 2026-10-05.
+  - Schema: a fourth, optional input `clients` with `client` (str) and `services_covered` (str, free text). Given as `clients.csv` or typed into an editable table on the settings screen (the table is built on Thursday; `clients.csv` first).
+  - Clients without an entry are labelled from wording alone and marked "scope unknown".
+  - Saved labels (D-15) are keyed by message text plus that client's `services_covered` text, not by message text alone. Editing a client's services re-labels that client's messages.
+  - Generator: each client gets 3 to 5 covered items. In-scope messages name covered items; extra-work messages name items not covered. `clients.csv` is written; the label sheet gets a `services_covered` column so the human labeller sees what the model sees.
+  - The message bank must keep the `{item}` slot when paraphrasing; a check rejects paraphrases that drop it.
+  - The keyword baseline also gets the services text, so benchmark 4 compares like with like.
+- **Factors that led to it:** Labels become about scope, not tone. Running the detector with and without services on the 150 hand-labelled messages gives a measured result for the "AI use" judging criterion.
+- **Trade-offs accepted:** About 6 hours of work (5 before Wednesday). Part of any measured gain is circular, because the generator sets labels from the same services list the model sees; the README must say so. Owners must type services for each client, which is why the field is optional.
+- **Expected effect:** Higher agreement with the human labels on benchmark 4 than labelling from wording alone.
+- **Actual measured effect:** Not measured yet.
+- **Evidence:** None yet.
+- **Related decisions:** D-15, D-14, D-12
+
+## D-18: As-of date uses activity dates only, not due dates
+- **ID:** D-18
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** D-11 defines the as-of date as "the latest date in any of the three files". The invoices file can carry explicit due dates, which may lie in the future.
+- **Options considered:**
+  1. Latest of every date column, due dates included (D-11 as written).
+  2. Latest activity date: invoice date, paid date, work date or request date.
+- **Decision:** Option 2.
+- **Factors that led to it:** A future due date would move the as-of date past the last real activity, so unpaid invoices would be charged late cost for days that have not happened yet.
+- **Trade-offs accepted:** Narrows D-11's wording. Identical result on the hand-calculation files.
+- **Expected effect:** As-of date is never later than the last real activity.
+- **Actual measured effect:** Benchmark 1: as-of date 2026-03-31, and the cost engine matches the hand calculation on all 29 client-month rows (revenue, labour cost, late cost, profit) and all 10 client totals (months of data, 12-month profit, worst-case profit, ranked, loss-making).
+- **Evidence:** `pytest tests/test_cost_engine.py`, run on 2026-10-05: 23 passed (`test_benchmark1_*` and one test per calculation, including `test_as_of_ignores_due_dates`).
+- **Related decisions:** D-11, D-16
 
 ---
 

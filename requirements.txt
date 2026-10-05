@@ -2,3 +2,4 @@ numpy
 pandas
 pytest
 pyan3==2.8.1
+pyyaml

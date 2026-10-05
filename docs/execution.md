@@ -2,16 +2,17 @@
 
 How the code runs. This file must match the actual code at all times.
 
-> **Current state: mostly PLANNED.** What exists on 2026-10-04: the schema
-> (`src/clientprofit/schema.py`), the data generator (`generator/`), the
-> hand-calculation input files (`tests/fixtures/hand_calc/`) and the tests for
-> them. Everything else below is still the target design and is marked `Planned`.
+> **Current state: mostly PLANNED.** What exists on 2026-10-05: the schema
+> (`src/clientprofit/schema.py`), a loader for schema-named files
+> (`src/clientprofit/ingest.py`), the cost engine (`src/clientprofit/cost_engine.py`),
+> the LLM wrapper (`src/clientprofit/llm.py`), the data generator (`generator/`),
+> the hand-calculation files (`tests/fixtures/hand_calc/`) and the tests for them. Everything else below is still the target design and is marked `Planned`.
 > When code for a section lands, replace its content with what the code
 > really does and change the mark to `Verified on <date>`. A section may
 > only be marked `Verified` after its commands were run and its function
 > names were checked against the code.
 >
-> Sections 11 and 12 describe code that exists and are marked `Verified`.
+> Sections 11 to 14 describe code that exists and are marked `Verified`.
 
 ## Keeping this file true
 
@@ -45,9 +46,9 @@ src/clientprofit/
     pipeline.py             run_pipeline(): calls every stage in order
     config.py               Loads and checks config.yaml
     schema.py               The fixed column names and types for the three inputs. Exists
-    ingest.py               Loads CSV files, maps messy columns to the schema
+    ingest.py               Loads CSV files, maps messy columns to the schema. Exists: loading schema-named files only (section 14)
     validate.py             Finds missing clients, date gaps, bad values
-    cost_engine.py          Profit per client per month. Arithmetic only
+    cost_engine.py          Profit per client per month. Arithmetic only. Exists (section 14)
     features.py             Client-month features for the forecast
     recommend.py            Rules and simulation: one action per client
     explain.py              Plain-language text, plus the number check
@@ -81,7 +82,8 @@ tests/
     test_generator.py       Exists
     test_project_rules.py   Exists: no generator imports, call graph current, hand-calc headers
     test_llm.py             Exists: the LLM wrapper against a local fake server
-    fixtures/hand_calc/     Benchmark 1 inputs. Expected answers are filled in by a teammate
+    test_cost_engine.py     Exists: benchmark 1 and one test per calculation
+    fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
     truth/                  Truth files. Read only by the benchmark scripts
@@ -161,7 +163,7 @@ app.main
 | `pipeline.run_pipeline` | paths, config | results object | The only function `app.py` and the scripts call |
 | `ingest.map_columns` | raw table | mapping, confidence | Uses the LLM. Result needs user confirmation |
 | `validate.validate_inputs` | three tables | list of problems | Never drops rows |
-| `cost_engine.compute_client_month_profit` | three tables, config | client-month profit table | No LLM, no model. Fully tested |
+| `cost_engine.compute_client_month_profit` | invoices, time entries, settings, requests | client-month table, invoices with costs, time entries with costs, as-of date | No LLM, no model. Fully tested (section 14) |
 | `features.build_features` | profit table, request labels | feature table | Uses only data up to each month |
 | `<forecaster>.fit` / `.predict` | feature table | next-quarter margin per client | Chosen by `forecast.model` in config |
 | `<detector>.label_requests` | requests table | one label per request | Chosen by `scope.detector` in config |
@@ -192,7 +194,8 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 |---|---|---|---|
 | A required column cannot be mapped | ingest | Stops | The mapping screen, with the missing column marked |
 | LLM call fails during column mapping | ingest | Falls back to manual mapping | A form to map columns by hand |
-| A staff member has no hourly cost | cost_engine | Stops | The name of the staff member and where to set the cost |
+| A staff member has no hourly cost | cost_engine | Stops with `CostEngineError` naming the staff | The name of the staff member and where to set the cost |
+| A required value is empty or unreadable (client, dates, amount, staff, hours) | cost_engine | Stops with `CostEngineError` listing the row numbers | The rows to fix or exclude in the validation step |
 | Negative or zero hours | validate | Keeps the rows, lists them | The rows, with a choice to exclude them |
 | Client has hours but no invoices | validate | Keeps the client, flags it | Client shown as all cost, with a warning |
 | Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed apart as "not enough history" |
@@ -285,7 +288,7 @@ Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 
 ## 12. Tests (Verified on 2026-10-05)
 
-`pytest` runs `tests/test_generator.py`, `tests/test_project_rules.py` and `tests/test_llm.py`.
+`pytest` runs `tests/test_generator.py`, `tests/test_project_rules.py`, `tests/test_llm.py` and `tests/test_cost_engine.py`.
 `test_project_rules.py` runs `python scripts/gen_callgraph.py --check`, so a
 stale call graph fails the test run. It also fails if any file in
 `src/clientprofit` imports `generator`.
@@ -311,3 +314,26 @@ Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
 `data/generated/label_sheet.csv`, times each call, and writes
 `out/llm_smoke_<model>.json` with timings, replies, parsed labels and failures.
 It does not read the truth file.
+
+## 14. Loader and cost engine (Verified on 2026-10-05)
+
+Benchmark 1 passes: `pytest tests/test_cost_engine.py` matches the
+hand-calculated files in `tests/fixtures/hand_calc/` exactly.
+
+| Function | File | What it does |
+|---|---|---|
+| `load_canonical(folder)` | `ingest.py` | Reads `invoices.csv`, `time_entries.csv`, `requests.csv` whose headers already match the schema |
+| `coerce_types(df, table, src_file)` | `ingest.py` | Gives each schema column its type; adds `_src_file` and `_src_row` (spreadsheet row number, header = 1). Unreadable values become empty; no row is dropped |
+| `as_of_date(invoices, time_entries, requests=None)` | `cost_engine.py` | Latest invoice, paid, work or request date (D-18) |
+| `invoice_costs(invoices, settings, as_of)` | `cost_engine.py` | Due date, days late, late cost, month, overdue-unpaid flag per invoice |
+| `labour_costs(time_entries, settings)` | `cost_engine.py` | Hours x hourly cost x `overhead_multiplier` per time entry |
+| `compute_client_month_profit(invoices, time_entries, settings, requests=None)` | `cost_engine.py` | Revenue, labour cost, late cost, profit, margin (empty when revenue is 0), and the `_src_row` numbers behind each client-month |
+| `compute_client_totals(client_month, invoices_with_costs, settings, as_of)` | `cost_engine.py` | Months of data, 12-month revenue, profit and margin, `profit_if_overdue_unpaid` (D-16), ranked, loss-making |
+| `rank_clients(totals)` | `cost_engine.py` | Ranked clients by 12-month profit, and unranked clients apart |
+
+Settings used: `staff_costs`, `overhead_multiplier`, `late_payment_annual_rate`,
+`payment_terms_days`, `unpaid_warning_days`, `min_months_for_ranking`.
+They are passed in as a dictionary; `config.py` does not exist yet.
+
+Not yet done here: mapping messy headers, client-name cleaning (D-11) and
+validation. The engine expects clean names and stops on unreadable values.
