@@ -48,5 +48,12 @@ REQUIRED = {
     "requests": REQUESTS_REQUIRED,
 }
 
+# Optional fourth input (D-17): what each client pays for, as free text.
+CLIENTS = {
+    "client": "str",
+    "services_covered": "str",
+}
+OPTIONAL_TABLES = {"clients": CLIENTS}
+
 CHANNELS = ("email", "slack", "phone", "ticket", "other")
 REQUEST_LABELS = ("in_scope", "extra_unpaid", "unclear")

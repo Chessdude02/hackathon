@@ -91,11 +91,22 @@ def load_bank():
     return TEMPLATES, "templates"
 
 
-def make_message(label, rng, bank):
+def _pick_item(label, rng, covered):
+    """D-17: in-scope messages name a covered item, extra work an uncovered one."""
+    if covered and label == "in_scope":
+        pool = list(covered)
+    elif covered and label == "extra_unpaid":
+        pool = [i for i in ITEMS if i not in covered]
+    else:
+        pool = ITEMS
+    return pool[int(rng.integers(len(pool)))]
+
+
+def make_message(label, rng, bank, covered=None):
     """Build one message for a label, with a random tone."""
     options = bank[label]
     text = options[int(rng.integers(len(options)))]
-    text = text.format(item=ITEMS[int(rng.integers(len(ITEMS)))],
+    text = text.format(item=_pick_item(label, rng, covered),
                        day=DAYS[int(rng.integers(len(DAYS)))])
     text = GREETINGS[int(rng.integers(len(GREETINGS)))] + text
     text = text + SIGNOFFS[int(rng.integers(len(SIGNOFFS)))]

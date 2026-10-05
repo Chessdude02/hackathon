@@ -120,3 +120,36 @@ def test_months_of_data_matches_profit_months(run):
         months = sorted(c["profit_by_month"])
         first, last = pd.Period(months[0], "M"), pd.Period(months[-1], "M")
         assert c["months_of_data"] == (last - first).n + 1
+
+
+def test_each_client_has_3_to_5_services_and_clients_file(run):
+    data, truth, _ = run
+    for c in truth["clients"].values():
+        assert 3 <= len(c["services_covered"]) <= 5
+    clients = pd.read_csv(data / "clients.csv")
+    assert list(clients.columns) == ["Client", "Services Covered"] and len(clients) == len(truth["clients"])
+
+
+def test_in_scope_messages_never_name_an_uncovered_item(run):
+    """D-17: an in-scope message only names items the client pays for."""
+    from generator.messages import ITEMS
+    data, truth, _ = run
+    requests = pd.read_csv(data / "header_variants" / "snake" / "requests.csv", keep_default_na=False)
+    services = pd.read_csv(data / "label_sheet.csv")  # has services per sampled row
+    covered = {row.row: row.services_covered for row in services.itertuples()}
+    checked = 0
+    for row, label in enumerate(truth["request_labels"]):
+        if label != "in_scope" or row not in covered:
+            continue
+        text = requests.loc[row, "message"].lower()
+        for item in ITEMS:
+            if item.lower() in text:
+                assert item in covered[row], (row, text)
+                checked += 1
+    assert checked > 0
+
+
+def test_label_sheet_shows_services(run):
+    data, _, _ = run
+    sheet = pd.read_csv(data / "label_sheet.csv", keep_default_na=False)
+    assert (sheet["services_covered"] != "").all()

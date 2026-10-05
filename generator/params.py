@@ -78,3 +78,6 @@ MONTH_NOISE_SD = 0.08
 # One-off projects.
 P_ONE_OFF_PROJECT = 0.03        # per client per month
 ONE_OFF_VALUE = (2000, 10000)
+
+# Services covered per client (D-17).
+SERVICES_PER_CLIENT = (3, 5)

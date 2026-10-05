@@ -32,6 +32,7 @@ clientprofit.llm.complete -> clientprofit.llm._request
 clientprofit.llm.complete -> clientprofit.llm._settings
 clientprofit.llm.list_models -> clientprofit.llm._request
 clientprofit.llm.list_models -> clientprofit.llm._settings
+clientprofit.schema -> clientprofit.schema.CLIENTS
 clientprofit.schema -> clientprofit.schema.INVOICES
 clientprofit.schema -> clientprofit.schema.INVOICES_REQUIRED
 clientprofit.schema -> clientprofit.schema.REQUESTS
@@ -42,4 +43,4 @@ clientprofit.schema -> clientprofit.schema.TIME_ENTRIES
 clientprofit.schema -> clientprofit.schema.TIME_ENTRIES_REQUIRED
 ```
 
-36 call edges.
+37 call edges.

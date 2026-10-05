@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from generator import params as P
-from generator.messages import make_message
+from generator.messages import ITEMS, make_message
 from generator.names import (CLIENT_FIRST, CLIENT_SECOND, CLIENT_SUFFIX,
                              SENIOR_ROLES, STAFF, TASK_TYPES)
 
@@ -326,9 +326,24 @@ def client_events(c):
     return out
 
 
-def add_messages(rng, requests, bank):
+def assign_services(rng, clients):
+    """D-17: each client pays for 3 to 5 of the message items."""
+    for c in clients:
+        k = _rint(rng, *P.SERVICES_PER_CLIENT)
+        c["services"] = [ITEMS[i] for i in sorted(rng.choice(len(ITEMS), size=k, replace=False))]
+
+
+def services_text(c):
+    return ", ".join(c["services"])
+
+
+def add_messages(rng, requests, bank, clients):
+    """Message text for each request; items follow the client's services (D-17)."""
+    covered = {c["client"]: c["services"] for c in clients}
     requests = requests.copy()
-    requests["message"] = [make_message(lbl, rng, bank) for lbl in requests["_label"]]
+    requests["message"] = [make_message(lbl, rng, bank, covered[cl])
+                           for lbl, cl in zip(requests["_label"], requests["client"])]
+    requests["_services"] = [", ".join(covered[cl]) for cl in requests["client"]]
     return requests
 
 
