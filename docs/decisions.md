@@ -27,6 +27,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
 | D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | Yes (20-message smoke test) |
 | D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Assumed | No |
+| D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Assumed | No |
 
 ---
 
@@ -228,7 +229,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Expected effect:** The cost engine matches the hand-calculated file in `tests/fixtures/hand_calc/` exactly (benchmark 1).
 - **Actual measured effect:** Not measured yet. The expected answers have not been filled in.
 - **Evidence:** None yet.
-- **Related decisions:** D-05, D-07, D-12
+- **Related decisions:** D-05, D-07, D-12, D-16
 
 ## D-12: Data generator design
 - **ID:** D-12
@@ -318,6 +319,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Not measured yet. Nothing is built.
 - **Evidence:** None yet. The 62-minute figure comes from D-14's smoke test.
 - **Related decisions:** D-14, D-07
+
+## D-16: Worst-case profit removes an overdue invoice completely
+- **ID:** D-16
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** D-11 defines `profit_if_overdue_unpaid` as profit with each overdue-unpaid invoice "removed completely, both its revenue and its late cost", and notes the late-cost part was the assistant's proposal, not yet agreed. The hand-calculation README worded it as "take away its revenue and its late cost". The hand calculation for Delta Foods read that as subtracting both from profit (1,372.80), not as removing both (1,500.00).
+- **Options considered:**
+  1. Subtract both: profit − amount − late cost. Delta Foods: 4,436.40 − 3,000 − 63.60 = 1,372.80.
+  2. Remove the invoice completely: profit − amount + late cost. Delta Foods: 4,436.40 − 3,000 + 63.60 = 1,500.00.
+- **Decision:** Option 2, chosen by the team lead on 2026-10-05.
+- **Factors that led to it:** The figure answers "what if this invoice is never paid?". An invoice that is never paid brings no revenue, and the late cost (the cost of waiting for that money) no longer applies. Option 1 counts the late cost twice.
+- **Trade-offs accepted:** The worst-case figure is slightly less harsh than option 1. The hand-calculation answer for Delta Foods was changed from 1,372.80 to 1,500.00 after the hand calculation was done; the change follows from this rule, not from re-checking the arithmetic. The README rule was reworded so it can only be read one way.
+- **Expected effect:** The cost engine and the hand calculation use the same rule; benchmark 1 can pass.
+- **Actual measured effect:** Not measured yet.
+- **Evidence:** `tests/fixtures/hand_calc/hand_calc_workbook_answered.xlsx` (original hand answer 1,372.80) and `tests/fixtures/hand_calc/expected_client_totals.csv` (1,500.00 under this rule).
+- **Related decisions:** D-11
 
 ---
 

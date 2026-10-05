@@ -37,5 +37,7 @@ Use every row as written, including the negative-hours row.
 - **Loss-making** = ranked and profit last 12m < 0.
 - **Overdue-unpaid invoice** = still unpaid on the as-of date and more than
   `unpaid_warning_days` days past its due date (exactly 90 does not count).
-- **profit_if_overdue_unpaid** = profit last 12m with each overdue-unpaid invoice
-  removed completely: take away its revenue and its late cost.
+- **profit_if_overdue_unpaid** = profit last 12m as if each overdue-unpaid invoice
+  had never been issued: its revenue is gone, and so is its late cost. Because the
+  late cost was a cost, removing it raises profit. In numbers:
+  profit last 12m − invoice amount + that invoice's late cost (D-16).
