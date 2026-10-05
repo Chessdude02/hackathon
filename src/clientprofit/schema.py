@@ -37,6 +37,14 @@ REQUESTS = {
 }
 REQUESTS_REQUIRED = ("client", "request_date", "message")
 
+# Columns where every row needs a value. An empty paid_date is allowed: it
+# means unpaid. (The *_REQUIRED tuples above list columns that must exist.)
+VALUE_REQUIRED = {
+    "invoices": ("client", "invoice_date", "amount"),
+    "time_entries": ("client", "staff", "work_date", "hours"),
+    "requests": ("client", "request_date", "message"),
+}
+
 TABLES = {
     "invoices": INVOICES,
     "time_entries": TIME_ENTRIES,

@@ -30,6 +30,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Assumed | No |
 | D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Assumed | No |
 | D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Assumed | Yes (benchmark 1) |
+| D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
 
 ---
 
@@ -375,6 +376,28 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Benchmark 1: as-of date 2026-03-31, and the cost engine matches the hand calculation on all 29 client-month rows (revenue, labour cost, late cost, profit) and all 10 client totals (months of data, 12-month profit, worst-case profit, ranked, loss-making).
 - **Evidence:** `pytest tests/test_cost_engine.py`, run on 2026-10-05: 23 passed (`test_benchmark1_*` and one test per calculation, including `test_as_of_ignores_due_dates`).
 - **Related decisions:** D-11, D-16
+
+## D-19: Rule-based column mapping, name cleaning and validation rules
+- **ID:** D-19
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** Uploaded files have messy headers, client spellings that differ between files, and errors. D-11 asked for confirmed mapping, simple name cleaning and a report that never drops rows silently.
+- **Options considered:**
+  1. Rule-based: a hand-written list of header words per schema column, exact match after cleaning; the LLM mapping (planned) is added on top, and this list stays as the fallback and the benchmark 5 baseline.
+  2. LLM mapping only.
+- **Decision:** Option 1 now, LLM later. Details:
+  - Headers are lower-cased, text in brackets and punctuation removed, then matched exactly against `ingest.SYNONYMS`. Unmatched headers are left for the owner. Each schema column is used once.
+  - Client names: trimmed, case and punctuation ignored, and one trailing suffix from Ltd, Limited, Inc, Incorporated, LLC, Co, Corp, Corporation dropped. This adds Co, Corp and Limited to D-11's list. Each client is shown under its most common spelling; the original is kept in `client_original`. Every merge is reported to the owner.
+  - "Required" splits in two: a column that must exist (`schema.*_REQUIRED`) and a value every row needs (`schema.VALUE_REQUIRED`). An empty paid date is allowed (unpaid).
+  - Duplicate invoices are suggested for exclusion. Identical time entries are only flagged, because two equal entries on one day can be genuine.
+  - Blank text cells count as empty.
+  - Rows leave the data only through `validate.exclude_rows`, with rows the owner picks.
+- **Factors that led to it:** Works without the LLM, is explainable, and gives benchmark 5 a non-LLM baseline.
+- **Trade-offs accepted:** The header list and the generator's 10 header styles were written by the same person (the assistant), so the 172 of 172 score below is circular and says nothing about real files. Benchmark 5 needs headers the assistant did not write (for example real Toggl, Harvest or QuickBooks export columns). Two different clients named, for example, "Acme Co" and "Acme Inc" would be merged; the report shows every merge so the owner can catch it.
+- **Expected effect:** Planted data problems are reported; real exports map with few manual fixes.
+- **Actual measured effect:** Seed 42: 172 of 172 headers across the 10 generated styles mapped correctly (circular, see above). On the main files: all 3 negative-hours rows, both duplicate invoices, the client with hours but no invoices, 2 of 3 skipped invoices (the third falls at the edge of the client's months), and all 5 blank optional cells were reported. All 4 planted name variants end up as one name each (one was only a trailing space, trimmed on load). 14 identical time-entry rows were flagged against 5 planted: the other 9 are identical entries the generator made by chance, which is why time-entry duplicates are not suggested for exclusion. Empty paid dates (54, unpaid invoices) are no longer reported as errors.
+- **Evidence:** Runs on `data/generated` from `python scripts/generate_data.py --out data/generated --seed 42` on 2026-10-05; `tests/test_ingest_validate.py` (seed 7 check of planted problems).
+- **Related decisions:** D-11, D-12, D-17
 
 ---
 

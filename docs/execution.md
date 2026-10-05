@@ -46,8 +46,8 @@ src/clientprofit/
     pipeline.py             run_pipeline(): calls every stage in order
     config.py               Loads and checks config.yaml
     schema.py               The fixed column names and types for the three inputs. Exists
-    ingest.py               Loads CSV files, maps messy columns to the schema. Exists: loading schema-named files only (section 14)
-    validate.py             Finds missing clients, date gaps, bad values
+    ingest.py               Loads CSV files, maps messy columns to the schema, unifies client names. Exists (section 14)
+    validate.py             Finds missing clients, date gaps, bad values. Exists (section 14)
     cost_engine.py          Profit per client per month. Arithmetic only. Exists (section 14)
     features.py             Client-month features for the forecast
     recommend.py            Rules and simulation: one action per client
@@ -83,6 +83,7 @@ tests/
     test_project_rules.py   Exists: no generator imports, call graph current, hand-calc headers
     test_llm.py             Exists: the LLM wrapper against a local fake server
     test_cost_engine.py     Exists: benchmark 1 and one test per calculation
+    test_ingest_validate.py Exists: mapping, name cleaning, validation, planted problems found
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
@@ -161,8 +162,8 @@ app.main
 | Function | Input | Output | Notes |
 |---|---|---|---|
 | `pipeline.run_pipeline` | paths, config | results object | The only function `app.py` and the scripts call |
-| `ingest.map_columns` | raw table | mapping, confidence | Uses the LLM. Result needs user confirmation |
-| `validate.validate_inputs` | three tables | list of problems | Never drops rows |
+| `ingest.map_columns` | raw table | mapping, confidence | Uses the LLM. Result needs user confirmation. Not built; `ingest.propose_mapping` (rule-based, section 14) is the fallback |
+| `validate.validate_inputs` | tables, settings, merged names | list of problems | Never drops rows (section 14) |
 | `cost_engine.compute_client_month_profit` | invoices, time entries, settings, requests | client-month table, invoices with costs, time entries with costs, as-of date | No LLM, no model. Fully tested (section 14) |
 | `features.build_features` | profit table, request labels | feature table | Uses only data up to each month |
 | `<forecaster>.fit` / `.predict` | feature table | next-quarter margin per client | Chosen by `forecast.model` in config |
@@ -193,7 +194,8 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | What goes wrong | Where | What the code does | What the user sees |
 |---|---|---|---|
 | A required column cannot be mapped | ingest | Stops | The mapping screen, with the missing column marked |
-| LLM call fails during column mapping | ingest | Falls back to manual mapping | A form to map columns by hand |
+| LLM call fails during column mapping | ingest | Falls back to `propose_mapping` | The suggested mapping, to confirm or correct by hand |
+| A required column is not mapped | ingest | `missing_required` lists it; the run cannot start | The mapping screen with the missing column named |
 | A staff member has no hourly cost | cost_engine | Stops with `CostEngineError` naming the staff | The name of the staff member and where to set the cost |
 | A required value is empty or unreadable (client, dates, amount, staff, hours) | cost_engine | Stops with `CostEngineError` listing the row numbers | The rows to fix or exclude in the validation step |
 | Negative or zero hours | validate | Keeps the rows, lists them | The rows, with a choice to exclude them |
@@ -319,15 +321,24 @@ Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
 `out/llm_smoke_<model>.json` with timings, replies, parsed labels and failures.
 It does not read the truth file.
 
-## 14. Loader and cost engine (Verified on 2026-10-05)
+## 14. Loader, validation and cost engine (Verified on 2026-10-05)
 
 Benchmark 1 passes: `pytest tests/test_cost_engine.py` matches the
 hand-calculated files in `tests/fixtures/hand_calc/` exactly.
 
 | Function | File | What it does |
 |---|---|---|
+| `read_raw(path)` | `ingest.py` | Reads a CSV as text, nothing typed yet |
+| `propose_mapping(headers, table)` | `ingest.py` | Suggests `{header: schema column or None}` from `SYNONYMS` (D-19). The owner confirms |
+| `missing_required(mapping, table)` | `ingest.py` | Required schema columns the mapping does not cover |
+| `apply_mapping(raw, mapping, table, src_file)` | `ingest.py` | Renames confirmed columns and types them; unmapped columns are ignored |
+| `client_key(name)` | `ingest.py` | Name used to match clients (D-19) |
+| `unify_client_names(tables)` | `ingest.py` | One display name per client; keeps `client_original`; returns the merges |
+| `validate_inputs(tables, settings=None, merged_names=None)` | `validate.py` | Problems with severity, table, `_src_row` numbers, message and `suggest_exclude`. Changes nothing |
+| `exclude_rows(tables, exclusions)` | `validate.py` | Removes only the rows the owner chose |
+| `has_errors(problems)`, `summary(problems)` | `validate.py` | Any error? / problems as a table |
 | `load_canonical(folder)` | `ingest.py` | Reads `invoices.csv`, `time_entries.csv`, `requests.csv` whose headers already match the schema |
-| `coerce_types(df, table, src_file)` | `ingest.py` | Gives each schema column its type; adds `_src_file` and `_src_row` (spreadsheet row number, header = 1). Unreadable values become empty; no row is dropped |
+| `coerce_types(df, table, src_file)` | `ingest.py` | Gives each schema column its type; adds `_src_file` and `_src_row` (spreadsheet row number, header = 1). Unreadable values and blank text become empty; no row is dropped |
 | `as_of_date(invoices, time_entries, requests=None)` | `cost_engine.py` | Latest invoice, paid, work or request date (D-18) |
 | `invoice_costs(invoices, settings, as_of)` | `cost_engine.py` | Due date, days late, late cost, month, overdue-unpaid flag per invoice |
 | `labour_costs(time_entries, settings)` | `cost_engine.py` | Hours x hourly cost x `overhead_multiplier` per time entry |
@@ -339,5 +350,9 @@ Settings used: `staff_costs`, `overhead_multiplier`, `late_payment_annual_rate`,
 `payment_terms_days`, `unpaid_warning_days`, `min_months_for_ranking`.
 They are passed in as a dictionary; `config.py` does not exist yet.
 
-Not yet done here: mapping messy headers, client-name cleaning (D-11) and
-validation. The engine expects clean names and stops on unreadable values.
+Validation checks: unreadable required values (error), staff without a cost
+(error), zero or negative hours, invoices paid before issue, negative amounts,
+duplicate rows, hours but no invoices, requests from unknown clients, months
+with hours but no invoice (warnings), empty optional values, invoices but no
+hours and merged name spellings (info). The engine stops on unreadable values,
+so errors must be fixed or excluded first.
