@@ -51,7 +51,7 @@ src/clientprofit/
     features.py             Client-month features for the forecast
     recommend.py            Rules and simulation: one action per client
     explain.py              Plain-language text, plus the number check
-    llm.py                  The only file that calls an LLM API
+    llm.py                  The only file that calls an LLM API. Exists (section 13)
     forecast/
         registry.py         Name -> forecaster
         baseline.py         Next quarter equals last quarter
@@ -73,12 +73,14 @@ generator/                  Data generator. Never imported by src/clientprofit. 
     message_bank.json       Request messages, paraphrased once by an LLM and saved. Not created yet
 scripts/
     generate_data.py        Exists
+    llm_smoke_test.py       Exists: times one model on 20 messages (section 13)
     run_pipeline.py
     run_benchmarks.py
     gen_callgraph.py        Exists and tested
 tests/
     test_generator.py       Exists
     test_project_rules.py   Exists: no generator imports, call graph current, hand-calc headers
+    test_llm.py             Exists: the LLM wrapper against a local fake server
     fixtures/hand_calc/     Benchmark 1 inputs. Expected answers are filled in by a teammate
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
@@ -219,8 +221,8 @@ check has its own `tests/fixtures/hand_calc/config.yaml`. They are not based on 
 | `forecast.horizon_months` | How far ahead to predict | 3 |
 | `forecast.test_months` | Months held back for benchmark 3 | 6 |
 | `scope.detector` | Detector name from the registry | `keyword` |
-| `llm.provider` | LLM provider used by `llm.py` | none; must be given |
-| `llm.model` | Model name passed to the provider | none; must be given |
+| `llm.provider` | LLM provider used by `llm.py`. Known: `featherless` | `featherless` (D-14) |
+| `llm.model` | Model name passed to the provider | none; chosen after the smoke test |
 | `dataset` | Dataset loader name from the registry | `generated` |
 | `random_seed` | Seed for the generator and the model | 42 |
 
@@ -279,9 +281,30 @@ Files written:
 
 Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 
-## 12. Tests (Verified on 2026-10-04)
+## 12. Tests (Verified on 2026-10-05)
 
-`pytest` runs `tests/test_generator.py` and `tests/test_project_rules.py`.
+`pytest` runs `tests/test_generator.py`, `tests/test_project_rules.py` and `tests/test_llm.py`.
 `test_project_rules.py` runs `python scripts/gen_callgraph.py --check`, so a
 stale call graph fails the test run. It also fails if any file in
 `src/clientprofit` imports `generator`.
+
+## 13. LLM wrapper (Verified on 2026-10-05 against a local fake server only)
+
+Not yet run against Featherless: the build environment's network blocked
+`api.featherless.ai` on 2026-10-05 and no key was set.
+
+| Function | What it does |
+|---|---|
+| `llm.complete(prompt, model, provider="featherless", system=None, max_tokens=256, temperature=0.0)` | Sends one chat request, returns the reply text |
+| `llm.list_models(provider="featherless")` | Returns the model ids the provider offers |
+
+- Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config.
+- `LLM_BASE_URL` overrides the provider's address. Only the tests use it.
+- Retries: HTTP 429, 500, 502, 503, 504 and connection errors are retried 3 times, waiting 1, 2 and 4 seconds.
+- Failure path: a missing key, unknown provider, failed call or unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
+
+Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
+`python scripts/llm_smoke_test.py --model <model id>`. It takes 20 messages from
+`data/generated/label_sheet.csv`, times each call, and writes
+`out/llm_smoke_<model>.json` with timings, replies, parsed labels and failures.
+It does not read the truth file.

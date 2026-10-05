@@ -25,6 +25,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-11 | 2026-10-04 | Fixed input schema and profit definitions | Assumed | No |
 | D-12 | 2026-10-04 | Data generator design | Superseded by D-13 | Yes (seed 42 run) |
 | D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
+| D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | No |
 
 ---
 
@@ -277,6 +278,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Seed 42: 15 loss-making clients (D-12: 14). 4 of 5 "looks big" clients are loss-making; the fifth ended at +$933 over 12 months through noise and two one-off projects. These 5 are still revenue ranks 1 to 5. 12 of 23 healthy clients developed late scope creep. Over 300 seeds the rate is 23%, so seed 42 is high by chance; it was kept rather than choosing a seed. 2 clients left early, 15 were repriced, 3 slow payers recovered, 28 one-off projects. The typical month-to-month change in profit rose from 36% to 46% of the average for healthy clients, and the direction flipped 62% of the time (D-12: 68%), meaning more lasting swings.
 - **Evidence:** `python scripts/generate_data.py --out data/generated --seed 42`, run on 2026-10-04, and a 300-seed count of `make_clients` on the same day.
 - **Related decisions:** D-12, D-11, D-06
+
+## D-14: LLM provider: Featherless AI behind one wrapper
+- **ID:** D-14
+- **Date:** 2026-10-05
+- **Status:** Assumed
+- **Context:** Column mapping, request labelling, the message bank and explanations need an LLM (D-07). The team has $25 of Featherless AI sponsor credit.
+- **Options considered:**
+  1. Featherless AI (open-weight models, sponsor credit).
+  2. Anthropic Claude (pay per token, about $20 estimated for the week, no credit).
+- **Decision:** Option 1, chosen by the team. All calls go through `src/clientprofit/llm.py`, which uses the provider's OpenAI-style chat completions endpoint through the Python standard library, so no extra package is added. The key is read from `FEATHERLESS_API_KEY`. Before anything is built on it, one model is timed on 20 messages with `scripts/llm_smoke_test.py`.
+- **Factors that led to it:** Free credit. Swapping providers later means adding one entry to `PROVIDERS` in `llm.py`.
+- **Trade-offs accepted:** Open-weight models are likely weaker than frontier models at following a fixed output format, so replies are parsed strictly and unparseable replies are counted. Featherless limits how many calls run at once by plan, which may make labelling all requests slow (benchmark 7). The endpoint, auth header and response shape were written from memory of the OpenAI-style format; the Featherless docs could not be read from the build environment. Not yet checked against the real service.
+- **Expected effect:** Under 3 seconds per call; at least 19 of 20 replies parse to a label.
+- **Actual measured effect:** Not measured yet. On 2026-10-05 the build environment's network policy blocked `api.featherless.ai`, and no key was set.
+- **Evidence:** `tests/test_llm.py` passes against a local fake server only.
+- **Related decisions:** D-07, D-12
 
 ---
 
