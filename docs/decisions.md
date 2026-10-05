@@ -25,7 +25,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-11 | 2026-10-04 | Fixed input schema and profit definitions | Assumed | No |
 | D-12 | 2026-10-04 | Data generator design | Superseded by D-13 | Yes (seed 42 run) |
 | D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
-| D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | No |
+| D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | Yes (20-message smoke test) |
 
 ---
 
@@ -287,12 +287,12 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Options considered:**
   1. Featherless AI (open-weight models, sponsor credit).
   2. Anthropic Claude (pay per token, about $20 estimated for the week, no credit).
-- **Decision:** Option 1, chosen by the team. All calls go through `src/clientprofit/llm.py`, which uses the provider's OpenAI-style chat completions endpoint through the Python standard library, so no extra package is added. The key is read from `FEATHERLESS_API_KEY`. Before anything is built on it, one model is timed on 20 messages with `scripts/llm_smoke_test.py`.
+- **Decision:** Option 1, chosen by the team. All calls go through `src/clientprofit/llm.py`, which uses the provider's OpenAI-style chat completions endpoint through the Python standard library, so no extra package is added. The key is read from `FEATHERLESS_API_KEY` if set; otherwise a placeholder is sent, which the build environment's proxy replaces with the real key. Teammates and the deployed app set the variable. Before anything is built on it, one model is timed on 20 messages with `scripts/llm_smoke_test.py`. Model tested: `Qwen/Qwen2.5-14B-Instruct` (official release, concurrency cost 1, $0.108 / $0.28 per million input / output tokens, no thinking section in replies to strip).
 - **Factors that led to it:** Free credit. Swapping providers later means adding one entry to `PROVIDERS` in `llm.py`.
-- **Trade-offs accepted:** Open-weight models are likely weaker than frontier models at following a fixed output format, so replies are parsed strictly and unparseable replies are counted. Featherless limits how many calls run at once by plan, which may make labelling all requests slow (benchmark 7). The endpoint, auth header and response shape were written from memory of the OpenAI-style format; the Featherless docs could not be read from the build environment. Not yet checked against the real service.
+- **Trade-offs accepted:** Open-weight models are likely weaker than frontier models at following a fixed output format, so replies are parsed strictly and unparseable replies are counted. Featherless limits how many calls run at once by plan, which may make labelling all requests slow (benchmark 7). The Featherless docs could not be read from the build environment; the endpoint, auth header and response shape were confirmed by real calls instead. Featherless sits behind Cloudflare, which blocks Python's default `Python-urllib` user agent (error 1010), so the wrapper sends `clientprofit/0.1`.
 - **Expected effect:** Under 3 seconds per call; at least 19 of 20 replies parse to a label.
-- **Actual measured effect:** Not measured yet. On 2026-10-05 the build environment's network policy blocked `api.featherless.ai`, and no key was set.
-- **Evidence:** `tests/test_llm.py` passes against a local fake server only.
+- **Actual measured effect:** `Qwen/Qwen2.5-14B-Instruct`, 20 label-sheet messages, one call at a time: 20 of 20 calls succeeded, 20 of 20 replies parsed to a valid label. Median 1.24 s per call, slowest 1.76 s, 25.4 s in total. Labels given: 9 in-scope, 6 extra unpaid, 5 unclear. At this rate, labelling all 3,029 generated requests one at a time would take about 62 minutes, which does not fit benchmark 7 (under 60 seconds from upload to ranked list) unless requests are labelled several per call, in parallel, or once and cached. Accuracy is not measured here; it needs the teammate's labels (benchmark 4). The messages are still template text, so accuracy on them will flatter the model.
+- **Evidence:** `python scripts/llm_smoke_test.py --model Qwen/Qwen2.5-14B-Instruct`, run on 2026-10-05 with no `FEATHERLESS_API_KEY` set (proxy-supplied key), on data from `python scripts/generate_data.py --out data/generated --seed 42`. Before that, one curl call to `/v1/chat/completions` with a placeholder key returned HTTP 200 in 1.7 s. `tests/test_llm.py` passes against a local fake server.
 - **Related decisions:** D-07, D-12
 
 ---

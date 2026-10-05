@@ -6,8 +6,10 @@ Each line reads: caller -> callee.
 ```
 clientprofit.llm._request -> clientprofit.llm.LLMError
 clientprofit.llm._request -> clientprofit.llm.RETRY_STATUS
+clientprofit.llm._request -> clientprofit.llm.USER_AGENT
 clientprofit.llm._settings -> clientprofit.llm.BASE_URL_ENV
 clientprofit.llm._settings -> clientprofit.llm.LLMError
+clientprofit.llm._settings -> clientprofit.llm.PLACEHOLDER_KEY
 clientprofit.llm._settings -> clientprofit.llm.PROVIDERS
 clientprofit.llm.complete -> clientprofit.llm.LLMError
 clientprofit.llm.complete -> clientprofit.llm._request
@@ -24,4 +26,4 @@ clientprofit.schema -> clientprofit.schema.TIME_ENTRIES
 clientprofit.schema -> clientprofit.schema.TIME_ENTRIES_REQUIRED
 ```
 
-18 call edges.
+20 call edges.

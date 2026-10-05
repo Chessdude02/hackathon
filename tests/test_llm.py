@@ -10,6 +10,7 @@ from clientprofit import llm
 
 class FakeAPI(BaseHTTPRequestHandler):
     fail_first = 0
+    status = 200
     seen = []
 
     def _reply(self, code, body):
@@ -20,7 +21,10 @@ class FakeAPI(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        FakeAPI.seen.append({"path": self.path, "auth": self.headers["Authorization"], "body": body})
+        FakeAPI.seen.append({"path": self.path, "auth": self.headers["Authorization"],
+                            "agent": self.headers["User-Agent"], "body": body})
+        if FakeAPI.status != 200:
+            return self._reply(FakeAPI.status, {"error": "no"})
         if FakeAPI.fail_first > 0:
             FakeAPI.fail_first -= 1
             return self._reply(429, {"error": "busy"})
@@ -40,7 +44,7 @@ def fake(monkeypatch):
     monkeypatch.setenv(llm.BASE_URL_ENV, f"http://127.0.0.1:{server.server_port}")
     monkeypatch.setenv("FEATHERLESS_API_KEY", "test-key")
     monkeypatch.setattr(llm.time, "sleep", lambda s: None)
-    FakeAPI.seen, FakeAPI.fail_first = [], 0
+    FakeAPI.seen, FakeAPI.fail_first, FakeAPI.status = [], 0, 200
     yield FakeAPI
     server.shutdown()
 
@@ -50,6 +54,7 @@ def test_complete_sends_key_and_returns_text(fake):
     call = fake.seen[0]
     assert call["path"] == "/chat/completions"
     assert call["auth"] == "Bearer test-key"
+    assert call["agent"] == llm.USER_AGENT  # Cloudflare blocks the urllib default
     assert call["body"]["messages"][0] == {"role": "system", "content": "sys"}
 
 
@@ -63,8 +68,14 @@ def test_list_models(fake):
     assert llm.list_models() == ["a-model", "b-model"]
 
 
-def test_missing_key_raises(monkeypatch):
+def test_missing_key_sends_placeholder(fake, monkeypatch):
     monkeypatch.delenv("FEATHERLESS_API_KEY", raising=False)
+    llm.complete("hi", "m")
+    assert fake.seen[0]["auth"] == f"Bearer {llm.PLACEHOLDER_KEY}"
+
+
+def test_refused_key_names_the_variable(fake):
+    fake.status = 401
     with pytest.raises(llm.LLMError, match="FEATHERLESS_API_KEY"):
         llm.complete("hi", "m")
 

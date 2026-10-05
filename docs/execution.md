@@ -222,7 +222,7 @@ check has its own `tests/fixtures/hand_calc/config.yaml`. They are not based on 
 | `forecast.test_months` | Months held back for benchmark 3 | 6 |
 | `scope.detector` | Detector name from the registry | `keyword` |
 | `llm.provider` | LLM provider used by `llm.py`. Known: `featherless` | `featherless` (D-14) |
-| `llm.model` | Model name passed to the provider | none; chosen after the smoke test |
+| `llm.model` | Model name passed to the provider | `Qwen/Qwen2.5-14B-Instruct` (D-14) |
 | `dataset` | Dataset loader name from the registry | `generated` |
 | `random_seed` | Seed for the generator and the model | 42 |
 
@@ -288,20 +288,21 @@ Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 stale call graph fails the test run. It also fails if any file in
 `src/clientprofit` imports `generator`.
 
-## 13. LLM wrapper (Verified on 2026-10-05 against a local fake server only)
+## 13. LLM wrapper (Verified on 2026-10-05)
 
-Not yet run against Featherless: the build environment's network blocked
-`api.featherless.ai` on 2026-10-05 and no key was set.
+Checked against Featherless with `Qwen/Qwen2.5-14B-Instruct` and against a
+local fake server (`tests/test_llm.py`).
 
 | Function | What it does |
 |---|---|
 | `llm.complete(prompt, model, provider="featherless", system=None, max_tokens=256, temperature=0.0)` | Sends one chat request, returns the reply text |
 | `llm.list_models(provider="featherless")` | Returns the model ids the provider offers |
 
-- Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config.
+- Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config. If it is not set, `PLACEHOLDER_KEY` is sent; in the build environment a proxy swaps in the real key.
+- Every request sends `User-Agent: clientprofit/0.1`. Cloudflare in front of Featherless blocks Python's default user agent with HTTP 403 (error 1010).
 - `LLM_BASE_URL` overrides the provider's address. Only the tests use it.
 - Retries: HTTP 429, 500, 502, 503, 504 and connection errors are retried 3 times, waiting 1, 2 and 4 seconds.
-- Failure path: a missing key, unknown provider, failed call or unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
+- Failure path: an unknown provider, a refused key (HTTP 401/403, message names the variable and shows the server's reply), a failed call or an unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
 
 Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
 `python scripts/llm_smoke_test.py --model <model id>`. It takes 20 messages from
