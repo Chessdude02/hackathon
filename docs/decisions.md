@@ -37,6 +37,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Assumed | Yes (benchmark 4) |
 | D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Assumed | Yes (seed 42) |
 | D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Assumed | No |
+| D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Assumed | Yes (benchmark 6) |
 
 ---
 
@@ -520,6 +521,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Not measured beyond tests (`tests/test_ingest_validate.py::test_pipeline_runs_without_requests`, `tests/test_scope.py::test_provider_down_stops_calling_after_five_failures`).
 - **Evidence:** Tests above, 2026-10-06.
 - **Related decisions:** D-15, D-23, D-24
+
+## D-26: Explanations: facts from code, LLM writes words, number check with template fallback
+- **ID:** D-26
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** The brief asks for 2 to 3 plain sentences per client written by an LLM using only numbers from the cost engine, forecast and recommendations, with an automatic check that every number in the text exists in the computed figures (benchmark 6, target zero).
+- **Options considered:**
+  1. Give the LLM the raw tables and let it pick numbers.
+  2. Code builds a list of facts with every number already formatted (including the recommendation's reason and alternative); the LLM only writes sentences; a check extracts every number from the text and rejects the text if any number is not among the facts; a rejected text is replaced by a fixed template from the same facts.
+- **Decision:** Option 2 (`src/clientprofit/explain.py`). Explanations are written when the owner opens a client and saved (`labels/saved_explanations.json`), so they are never on the path to the ranked list.
+- **Factors that led to it:** The LLM never computes (D-07). A failed check or a provider failure falls back to text made by code, so an invented number cannot reach the screen.
+- **Trade-offs accepted:** The check proves no number was invented; it cannot tell whether a correct number is described correctly (seen on the screen: "48%, closer to the target of 30%", where 48% is above the target), and it does not catch numbers written as words. The check allows 3 and 12 (the periods the facts refer to) and drops the sign of a number (so "a loss of $1,175" passes). The screen says the numbers were checked, not the wording.
+- **Expected effect:** Zero invented numbers in shown texts.
+- **Actual measured effect:** 48 ranked clients on seed 42: 48 texts written by the LLM, 0 contained an invented number, 0 provider errors, 0 shown texts with an invented number; 107.1 s for all 48 (about 2.2 s each). The unit tests show the check does catch invented numbers (`tests/test_explain.py`), so zero is not a sign of a check that never fires.
+- **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json` section 6.
+- **Related decisions:** D-07, D-14, D-24
 
 ---
 

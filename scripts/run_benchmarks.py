@@ -42,6 +42,14 @@ def run_on(data):
     return result
 
 
+def _demo_labels(result):
+    from clientprofit.scope.registry import get_detector, services_by_client
+    req = result["tables"].get("requests")
+    if req is None:
+        return None
+    return get_detector("llm", config.load_config()).label_requests(req, services_by_client(result["tables"]))
+
+
 def bench1():
     run = subprocess.run([sys.executable, "-m", "pytest", "-q", "tests/test_cost_engine.py", "-k", "benchmark1"],
                          cwd=REPO, capture_output=True, text=True)
@@ -108,6 +116,46 @@ def bench4(result, truth, hand_path):
     return out
 
 
+def bench6(result, labels):
+    """Explanations for every ranked client, written fresh (no saved texts), then checked for
+    numbers that are not in the facts. Passing texts are saved for the demo."""
+    import shutil
+    from clientprofit import explain, recommend
+    from clientprofit.scope.store import LabelStore
+
+    cfg = config.load_config()
+    recs = recommend.recommend_actions(result, cfg, labels)
+    totals = result["totals"].set_index("client")
+    tmp = Path(tempfile.mkdtemp()) / "explanations.json"
+    store = LabelStore(tmp)
+    t0 = time.perf_counter()
+    rows = []
+    for rec in recs.to_dict("records"):
+        out = explain.write_explanation(rec, totals.loc[rec["client"]].to_dict(), cfg["llm"]["model"], store=store)
+        shown_bad = explain.check_numbers(out["text"], explain.facts_for(rec, totals.loc[rec["client"]].to_dict()))
+        rows.append({"source": out["source"], "invented": out["invented"], "error": bool(out.get("error")),
+                     "shown_invented": shown_bad})
+    seconds = time.perf_counter() - t0
+    if tmp.exists():  # keep the passing texts so the demo does not wait for them
+        saved = LabelStore(explain.EXPLANATIONS_PATH)
+        for k, v in LabelStore(tmp)._data.items():
+            saved.put(k, v)
+        saved.save()
+        shutil.rmtree(tmp.parent, ignore_errors=True)
+    llm_texts = [r for r in rows if not r["error"]]
+    return {"clients": len(rows),
+            "llm_texts_written": len(llm_texts),
+            "llm_texts_with_invented_numbers": sum(bool(r["invented"]) for r in llm_texts),
+            "invented_numbers_caught": sum(len(r["invented"]) for r in llm_texts),
+            "examples_caught": [r["invented"] for r in llm_texts if r["invented"]][:5],
+            "provider_errors": sum(r["error"] for r in rows),
+            "shown_texts_with_invented_numbers": sum(bool(r["shown_invented"]) for r in rows),
+            "seconds": round(seconds, 1),
+            "note": ("Target: zero invented numbers in shown texts. A text with an invented number is replaced by "
+                     "a template built from the same facts. The check cannot tell whether a correct number is "
+                     "described correctly, and does not catch numbers written as words.")}
+
+
 def bench5(data, truth):
     total = correct = 0
     for style, maps in truth["header_mappings"].items():
@@ -143,7 +191,7 @@ def main():
            "4_scope_detector": (bench4(result, truth, args.hand_labels) if Path(args.hand_labels).exists()
                                 else "Pending: needs the 150 hand labels."),
            "5_column_mapping": bench5(args.data, truth),
-           "6_invented_numbers": "Pending: explanations not built.",
+           "6_invented_numbers": bench6(result, _demo_labels(result)),
            "7_speed": {"clients": len(result["totals"]),
                        "seconds_upload_to_ranked": round(result["seconds_upload_to_ranked"], 2),
                        "note": "Command-line load, map, validate, rank. Request labelling is timed separately (D-15)."}}

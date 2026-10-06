@@ -22,6 +22,24 @@ clientprofit.cost_engine.compute_client_totals -> clientprofit.schema.SRC_ROW
 clientprofit.cost_engine.invoice_costs -> clientprofit.cost_engine._check
 clientprofit.cost_engine.labour_costs -> clientprofit.cost_engine.CostEngineError
 clientprofit.cost_engine.labour_costs -> clientprofit.cost_engine._check
+clientprofit.explain.allowed_numbers -> clientprofit.explain._value
+clientprofit.explain.check_numbers -> clientprofit.explain._value
+clientprofit.explain.check_numbers -> clientprofit.explain.allowed_numbers
+clientprofit.explain.facts_for -> clientprofit.explain.money
+clientprofit.explain.facts_for -> clientprofit.explain.pct
+clientprofit.explain.write_explanation -> clientprofit.explain.EXPLANATIONS_PATH
+clientprofit.explain.write_explanation -> clientprofit.explain.PROMPT_VERSION
+clientprofit.explain.write_explanation -> clientprofit.explain.SYSTEM
+clientprofit.explain.write_explanation -> clientprofit.explain.check_numbers
+clientprofit.explain.write_explanation -> clientprofit.explain.facts_for
+clientprofit.explain.write_explanation -> clientprofit.explain.prompt_for
+clientprofit.explain.write_explanation -> clientprofit.explain.template_text
+clientprofit.explain.write_explanation -> clientprofit.llm.complete
+clientprofit.explain.write_explanation -> clientprofit.scope.llm_detector.PROMPT_VERSION
+clientprofit.explain.write_explanation -> clientprofit.scope.llm_detector.SYSTEM
+clientprofit.explain.write_explanation -> clientprofit.scope.store.LabelStore
+clientprofit.explain.write_explanation -> clientprofit.scope.store.LabelStore.__init__
+clientprofit.explain.write_explanation -> clientprofit.scope.store.label_key
 clientprofit.features.build_features -> clientprofit.features.WINDOW
 clientprofit.features.build_features -> clientprofit.features._days_to_pay
 clientprofit.features.build_features -> clientprofit.features._monthly
@@ -109,6 +127,7 @@ clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword.IN_SCOPE_WORD
 clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword._named
 clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore
 clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore.__init__
+clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.explain.PROMPT_VERSION
 clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.llm_detector.PROMPT_VERSION
 clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.llm_detector.PROMPT_VERSION_NO_SERVICES
 clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.store.label_key
@@ -125,6 +144,7 @@ clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.SAVE_EVERY
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.llm_detector.LABELS
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.metrics.LABELS
+clientprofit.scope.llm_detector.prompt_for -> clientprofit.explain.SYSTEM
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES_NO_SERVICES
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.SYSTEM
@@ -175,4 +195,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-169 call edges.
+189 call edges.

@@ -70,6 +70,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **Forecast** | Predicts next quarter's margin per client. A LightGBM model was tested against "next quarter equals last quarter" and lost, so the simple rule ships. | Built, not yet shown on the screen |
 | **Recommendations** | One action per client (keep, raise price, cut scope, end the contract) with its dollar effect a year, the reason, and for "end" always an alternative. Rules on the last 3 months; "end" only as a last resort. | Built |
 | **Loss warnings** | Flags clients profitable over the year but heading toward a loss now. | Built |
+| **Explanations** | Two or three plain sentences per client, written by the AI using only numbers our code computed. An automatic check rejects any text with a number not in the figures and shows standard wording instead. | Built: 0 invented numbers in 48 texts |
 | **Screen** | Streamlit app: data source, column check, settings, problems, ranked list with actions and warnings, scope-creep signals with progress, client detail. Requests and services are optional. | Built (rough) |
 | **Data generator** | Creates a realistic fake agency (50 clients, 24 months) with planted patterns, because no real data was available. | Built |
 | **Benchmarks** | One script runs the benchmarks and writes the numbers to a file. | Built (6 of 7) |
@@ -80,7 +81,6 @@ money, which are heading toward a loss, and what should I do about each one?**
 | Part | What it will do |
 |---|---|
 | **Forecast on the screen** | Trend lines per client next to the action. |
-| **Explanations** | Two or three plain sentences per client, written by the AI **using only numbers our code computed**, with an automatic check that rejects any text containing a number not in our tables. |
 | **Services table on the settings screen** | Type each client's services in the app instead of uploading a file. |
 | **Deployment** | A public link to the app. |
 
@@ -129,7 +129,7 @@ hand calculation done by a teammate who did not write or read the engine code.
 | Forecast | **Simple rule** (the AI model lost the test) | We ship what measured best, not what sounds most impressive. |
 | Labelling client messages | **AI with the client's services** (keyword fallback), shown as a suggestion to review (D-23) | Reading "can we make it pop more?" is a language task. It tied a keyword rule on our data, so it is not claimed to be more accurate. |
 | Column mapping | **Word rules now; AI planned**, owner always confirms | A wrong mapping silently corrupts every number, so a person checks it. |
-| Explanations | **AI, planned**, given only computed numbers, with an automatic check | The AI writes words; code supplies every number. |
+| Explanations | **AI**, given only computed numbers, with an automatic check and a standard-wording fallback (D-26) | The AI writes words; code supplies every number. |
 
 All AI calls go through one small file (`src/clientprofit/llm.py`), so the
 provider can be swapped in about an hour. The API key is read from an
@@ -150,7 +150,7 @@ accurate on real businesses.
 | 3 | Forecast error, last 6 months, split by time | Baseline **0.143**, LightGBM **0.172** (baseline wins on all 3 datasets) | The AI model did not earn its place, so it was dropped. That is the honest result. |
 | 4 | Message labeller vs 150 messages labelled by a teammate | Keyword + services **0.76** accuracy, AI **0.73 to 0.75** | The AI ties a keyword rule on our generated messages. It does not beat it. The keyword rule's lead is partly circular (its word list overlaps the generator's). |
 | 5 | Column mapping on 10 header styles | **172 of 172** | Meaningless as it stands: the same person wrote the test headers and the word list. Needs real export headers. |
-| 6 | No invented numbers in explanations | Not built yet | |
+| 6 | No invented numbers in explanations | **0 of 48** AI texts contained an invented number; 0 reached the screen | The check proves numbers are not made up. It cannot prove each number is described correctly (we saw "48%, closer to the 30% target" when 48% is above it). |
 | 7 | Speed, upload to ranked list, 50 clients | **About 1 second** (target: under 60) | Fast enough. Labelling new messages is timed separately; all 2,601 demo messages took 33 minutes once, then 2.5 seconds when reused. |
 
 **Two of our three AI components lost to simple baselines.** We kept the

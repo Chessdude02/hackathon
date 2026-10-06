@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from clientprofit import config, ingest, pipeline, recommend, schema, validate  # noqa: E402
+from clientprofit import config, explain, ingest, pipeline, recommend, schema, validate  # noqa: E402
 from clientprofit.scope.registry import get_detector, services_by_client  # noqa: E402
 
 ASK_BEFORE_LABELLING = 200   # more new messages than this: show the time and ask first (D-15)
@@ -202,12 +202,31 @@ def recommendation_box(rec):
                "accepts the change. You make the final call.")
 
 
-def client_detail(result, recs, labels):
+def explanation_box(rec, totals, cfg):
+    """Two or three sentences from the LLM using only computed numbers (D-26)."""
+    key = ("explanation", rec["client"], rec["action"], round(rec["dollar_effect_per_year"], 2))
+    if key not in st.session_state:
+        with st.spinner("Writing a plain-language explanation…"):
+            st.session_state[key] = explain.write_explanation(rec, totals, cfg["llm"]["model"],
+                                                              cfg["llm"]["provider"])
+    out = st.session_state[key]
+    st.info(md(out["text"]), icon="💬")
+    if out["source"] == "template":
+        reason = ("the AI was unavailable" if out.get("error")
+                  else f"the AI's text used numbers not in the figures ({', '.join(out['invented'])})")
+        st.caption(f"Standard wording shown because {reason}.")
+    else:
+        st.caption("Written by AI from the figures above; every number in it was checked against them.")
+
+
+def client_detail(result, recs, labels, cfg):
     clients = list(result["ranked"]["client"]) + list(result["unranked"]["client"])
     client = st.selectbox("Client detail", clients, key="detail_client")
     rec = recs[recs["client"] == client]
     if len(rec):
         recommendation_box(rec.iloc[0].to_dict())
+        totals = result["totals"].set_index("client").loc[client].to_dict()
+        explanation_box(rec.iloc[0].to_dict(), totals, cfg)
     else:
         st.info("Not enough history to rank or recommend an action (under 3 months of data).")
     cm = result["client_month"][result["client_month"]["client"] == client]
@@ -312,7 +331,7 @@ def main():
                            hide_index=True, width="stretch")
     recs = recommend.recommend_actions(result, settings, new_labels)
     st.header("5. Client detail")
-    client_detail(result, recs, new_labels)
+    client_detail(result, recs, new_labels, cfg)
 
 
 main()

@@ -54,7 +54,7 @@ src/clientprofit/
     cost_engine.py          Profit per client per month. Arithmetic only. Exists (section 14)
     features.py             Client-month features for the forecast. Exists (section 16)
     recommend.py            Rules and simulation: one action per client. Exists (section 19)
-    explain.py              Plain-language text, plus the number check
+    explain.py              Plain-language text, plus the number check. Exists (section 20)
     llm.py                  The only file that calls an LLM API. Exists (section 13)
     forecast/               Exists (section 16)
         registry.py         Name -> forecaster
@@ -95,9 +95,11 @@ tests/
     test_scope.py           Exists: keyword rules, saved labels, LLM detector against a fake server
     test_forecast.py        Exists: features, time split, no future data in features
     test_recommend.py       Exists: one test per recommendation rule
+    test_explain.py         Exists: facts, number check, template fallback
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 labelling/                  The 150-message label sheet (blank and hand-labelled), CSV and workbook (benchmark 4)
 labels/saved_labels.json    Saved request labels for the demo data (D-15)
+labels/saved_explanations.json  Saved explanations for the demo data (D-26)
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
     truth/                  Truth files. Read only by the benchmark scripts
@@ -182,8 +184,8 @@ app.main
 | `<forecaster>.fit` / `.predict` | feature table | next-quarter operating margin | Chosen by `forecast.model` in config (section 16) |
 | `<detector>.label_requests` | requests, services per client, progress | one {label, source} per request | Chosen by `scope.detector` in config (section 17) |
 | `recommend.recommend_actions` | pipeline result, settings, labels (optional) | one action per ranked client with dollar effect, reason, alternative, warning | Rules, not a model (section 19) |
-| `explain.write_explanations` | computed tables | text per client | Receives numbers, never computes them |
-| `explain.check_numbers` | text, computed tables | pass or fail | A fail triggers the template text |
+| `explain.write_explanation` | one recommendation row, the client's totals, model | {text, source, invented} for one client | Receives formatted numbers, never computes them (section 20) |
+| `explain.check_numbers` | text, facts | numbers in the text that are not in the facts | Non-empty means the template text is shown |
 | `llm.complete` | prompt | text | The single place an LLM API is called |
 
 ## 7. Data flow (Planned)
@@ -396,7 +398,8 @@ loss" (D-24), a time-log warning, unranked clients apart, then "Scope-creep
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, monthly
-figures, the rows behind each month, and the client's labelled requests. `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
+figures, the rows behind each month, the client's labelled requests, and an
+explanation written on opening (D-26; a note says when standard wording was used instead). `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
 `tests/test_app.py`).
 
 Measured on seed 42 data, 50 clients: `scripts/run_pipeline.py` loads, maps,
@@ -453,8 +456,9 @@ not yet shown on the screen or used by any later stage.
 bottom K, against revenue ranking), 3 (D-21), 4 (keyword and LLM detectors,
 each with and without services, against `--hand-labels`, default
 `labelling/label_sheet_seed42_labeled.csv`; D-22), 5 (rule-based mapper on the
-10 header styles; circular) and 7 (load to ranked list). Benchmark 6 is
-reported as pending. With `--seeds`, benchmarks 2 and 3 are repeated on extra
+10 header styles; circular), 6 (explanations for every ranked client, written
+fresh and checked for invented numbers; passing texts are saved for the demo;
+D-26) and 7 (load to ranked list). With `--seeds`, benchmarks 2 and 3 are repeated on extra
 generated datasets. This is the only script that reads the truth file.
 
 ## 19. Recommendations (Verified on 2026-10-06)
@@ -466,3 +470,16 @@ generated datasets. This is the only script that reads the truth file.
 
 Rules and thresholds: D-24 and the constants at the top of `recommend.py`.
 The screen and `scripts/run_pipeline.py` both use it.
+
+## 20. Explanations (Verified on 2026-10-06)
+
+| Function | File | What it does |
+|---|---|---|
+| `facts_for(rec, totals)` | `explain.py` | The facts an explanation may use, every number formatted by code, plus the recommendation's reason and alternative |
+| `write_explanation(rec, totals, model, provider="featherless", store=None)` | `explain.py` | Saved text if any; else asks the LLM (`SYSTEM`, `prompt_for`), checks it, and saves it if it passes. Returns `source` `saved`, `llm` or `template` |
+| `check_numbers(text, facts)`, `allowed_numbers(facts)` | `explain.py` | Numbers in the text that are not in the facts (3 and 12 always allowed; signs ignored) |
+| `template_text(rec)` | `explain.py` | Fixed wording from the recommendation, shown when the check fails or the LLM is unavailable |
+
+Saved explanations: `labels/saved_explanations.json`, keyed like saved labels
+(prompt with facts, model, `PROMPT_VERSION`), so any change in the figures
+means a new text.
