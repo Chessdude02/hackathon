@@ -31,6 +31,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Assumed | No |
 | D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Assumed | Yes (benchmark 1) |
 | D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
+| D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
 
 ---
 
@@ -398,6 +399,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Seed 42: 172 of 172 headers across the 10 generated styles mapped correctly (circular, see above). On the main files: all 3 negative-hours rows, both duplicate invoices, the client with hours but no invoices, 2 of 3 skipped invoices (the third falls at the edge of the client's months), and all 5 blank optional cells were reported. All 4 planted name variants end up as one name each (one was only a trailing space, trimmed on load). 14 identical time-entry rows were flagged against 5 planted: the other 9 are identical entries the generator made by chance, which is why time-entry duplicates are not suggested for exclusion. Empty paid dates (54, unpaid invoices) are no longer reported as errors.
 - **Evidence:** Runs on `data/generated` from `python scripts/generate_data.py --out data/generated --seed 42` on 2026-10-05; `tests/test_ingest_validate.py` (seed 7 check of planted problems).
 - **Related decisions:** D-11, D-12, D-17
+
+## D-20: PyYAML for config and a demo-folder setting for tests
+- **ID:** D-20
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** Both were added on 2026-10-05 before approval and flagged afterwards. The team rule is to ask before adding a library or feature.
+- **Options considered:**
+  1. Keep `pyyaml` (reads `config.yaml`, the format in the team's planned design) and the `CLIENTPROFIT_DEMO_DIR` environment variable (lets `tests/test_app.py` point the screen at its own generated data).
+  2. Switch the config to JSON and hard-wire the demo folder.
+- **Decision:** Option 1, approved by the team lead on 2026-10-06.
+- **Factors that led to it:** `config.yaml` was already the planned format; PyYAML was already installed. The demo-folder variable keeps the app test independent of local data.
+- **Trade-offs accepted:** One more dependency.
+- **Expected effect:** None on behaviour.
+- **Actual measured effect:** Not applicable.
+- **Evidence:** Team lead approval in chat, 2026-10-06.
+- **Related decisions:** D-19
 
 ---
 
