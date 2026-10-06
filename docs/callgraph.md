@@ -95,16 +95,22 @@ clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store
 clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore.__init__
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.llm.complete
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.keyword.label_one
-clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.SYSTEM
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.parse_label
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.prompt_for
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector.__init__
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector._label_live
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION_NO_SERVICES
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.SAVE_EVERY
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.store.label_key
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.llm_detector.LABELS
+clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.metrics.LABELS
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES
+clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES_NO_SERVICES
+clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.SYSTEM
+clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.SYSTEM_NO_SERVICES
+clientprofit.scope.metrics.scores -> clientprofit.scope.llm_detector.LABELS
+clientprofit.scope.metrics.scores -> clientprofit.scope.metrics.LABELS
 clientprofit.scope.registry.get_detector -> clientprofit.scope.keyword.KeywordDetector
 clientprofit.scope.registry.get_detector -> clientprofit.scope.llm_detector.LLMDetector
 clientprofit.scope.registry.get_detector -> clientprofit.scope.llm_detector.LLMDetector.__init__
@@ -149,4 +155,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-143 call edges.
+149 call edges.

@@ -116,8 +116,15 @@ def test_parse_label(reply, label):
     assert parse_label(reply) == label
 
 
-def test_prompt_without_services_says_not_known():
-    assert "Services covered: not known" in prompt_for("hi", None)
+def test_prompt_without_services_leaves_the_services_line_out():
+    prompt, system = prompt_for("hi", None)
+    assert "Services covered" not in prompt and "Services covered" not in system
+
+
+def test_prompt_with_services_is_unchanged_so_saved_labels_stay_valid():
+    from clientprofit.scope.llm_detector import EXAMPLES, SYSTEM
+    prompt, system = prompt_for("hi", "flyer")
+    assert prompt == EXAMPLES + "Services covered: flyer\nMessage: hi\nLabel:" and system == SYSTEM
 
 
 def test_registry_and_services_lookup():
@@ -126,3 +133,12 @@ def test_registry_and_services_lookup():
         get_detector("nope")
     clients = pd.DataFrame({"client": ["A", "B"], "services_covered": ["flyer", None]})
     assert services_by_client({"clients": clients}) == {"A": "flyer"}
+
+
+def test_scores_precision_recall_f1():
+    from clientprofit.scope.metrics import scores
+    s = scores(["extra_unpaid", "extra_unpaid", "in_scope", "unclear"],
+               ["extra_unpaid", "in_scope", "in_scope", "extra_unpaid"])
+    e = s["per_label"]["extra_unpaid"]
+    assert (e["precision"], e["recall"], e["f1"], e["support"]) == (0.5, 0.5, 0.5, 2)
+    assert s["accuracy"] == 0.5 and s["headline"]["label"] == "extra_unpaid"

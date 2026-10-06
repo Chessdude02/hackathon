@@ -73,6 +73,41 @@ def bench3(result, cfg):
                     cfg["forecast"]["test_months"], cfg["forecast"]["horizon_months"])
 
 
+def bench4(result, truth, hand_path):
+    """Detectors against the human labels, each with and without the client's services (D-17)."""
+    from clientprofit.scope.keyword import KeywordDetector
+    from clientprofit.scope.llm_detector import LLMDetector
+    from clientprofit.scope.metrics import scores
+    from clientprofit.scope.registry import services_by_client
+
+    hand = pd.read_csv(hand_path, keep_default_na=False)
+    req = result["tables"]["requests"]
+    by_row = req.set_index("_src_row")
+    sample = by_row.loc[hand["row"] + 2].reset_index()  # sheet row = 0-based data row; _src_row = row + 2
+    assert sample["message"].tolist() == hand["message"].tolist(), "label sheet does not match requests"
+    services = services_by_client(result["tables"])
+    actual = hand["label"].tolist()
+    model = config.load_config()["llm"]["model"]
+    out = {"hand_labelled": len(hand), "hand_label_counts": hand["label"].value_counts().to_dict()}
+    runs = {"keyword_with_services": (KeywordDetector(), services),
+            "keyword_without_services": (KeywordDetector(), {}),
+            "llm_with_services": (LLMDetector(model), services),
+            "llm_without_services": (LLMDetector(model, use_services=False), services)}
+    for name, (detector, svc) in runs.items():
+        t0 = time.perf_counter()
+        labels = detector.label_requests(sample, svc)
+        res = scores([x["label"] for x in labels], actual)
+        res["sources"] = pd.Series([x["source"] for x in labels]).value_counts().to_dict()
+        res["seconds"] = round(time.perf_counter() - t0, 1)
+        out[name] = res
+    gen = [truth["request_labels"][r] for r in hand["row"]]
+    out["human_vs_generator_agreement"] = scores(gen, actual)["accuracy"]
+    out["note"] = ("Sheet holds 50 messages per generator label, so precision is not at real-world shares. "
+                   "Messages and services are generated; the generator set labels from the same services the "
+                   "detectors see, so part of any gain from services is circular.")
+    return out
+
+
 def bench5(data, truth):
     total = correct = 0
     for style, maps in truth["header_mappings"].items():
@@ -94,6 +129,7 @@ def main():
     ap.add_argument("--truth", default="data/truth/truth_seed42.json")
     ap.add_argument("--out", default="out/benchmarks.json")
     ap.add_argument("--seeds", type=int, nargs="*", default=[1, 2], help="extra generated seeds for benchmarks 2-3")
+    ap.add_argument("--hand-labels", default="labelling/label_sheet_seed42_labeled.csv")
     args = ap.parse_args()
 
     cfg = config.load_config()
@@ -104,7 +140,8 @@ def main():
            "1_cost_engine_vs_hand_calculation": bench1(),
            "2_ranking": {f"seed {truth['seed']}": bench2(result, truth)},
            "3_forecast_mae": {f"seed {truth['seed']}": bench3(result, cfg)},
-           "4_scope_detector": "Pending: needs the 150 hand labels.",
+           "4_scope_detector": (bench4(result, truth, args.hand_labels) if Path(args.hand_labels).exists()
+                                else "Pending: needs the 150 hand labels."),
            "5_column_mapping": bench5(args.data, truth),
            "6_invented_numbers": "Pending: explanations not built.",
            "7_speed": {"clients": len(result["totals"]),

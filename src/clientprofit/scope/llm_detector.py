@@ -32,9 +32,29 @@ def parse_label(text):
     return hits[0] if len(hits) == 1 else None
 
 
+# Used when a client's services are unknown. Telling the model "services: not known"
+# made it answer "unclear" to everything (benchmark 4, 2026-10-06), so the services
+# line is left out and the label is judged from the wording alone.
+PROMPT_VERSION_NO_SERVICES = "v1-noservices"
+SYSTEM_NO_SERVICES = (
+    "You label messages that clients send to their marketing agency. Reply with exactly one word.\n"
+    "in_scope - routine work on something already agreed: approvals, edits or fixes, scheduling, reports, admin\n"
+    "extra_unpaid - a new deliverable or clearly more than agreed (also make X, redo, versions for each branch, "
+    "extra volume, new channels)\n"
+    "unclear - cannot tell without asking the client"
+)
+EXAMPLES_NO_SERVICES = (
+    "Message: Please schedule the newsletter for Friday as planned.\nLabel: in_scope\n\n"
+    "Message: Can you also design a brochure for our open day?\nLabel: extra_unpaid\n\n"
+    "Message: Can we make the flyer pop more?\nLabel: unclear\n\n"
+)
+
+
 def prompt_for(message, services):
-    services_line = f"Services covered: {services}" if services else "Services covered: not known"
-    return EXAMPLES + f"{services_line}\nMessage: {message}\nLabel:"
+    """Prompt text and system message; without services the services line is left out."""
+    if services:
+        return EXAMPLES + f"Services covered: {services}\nMessage: {message}\nLabel:", SYSTEM
+    return EXAMPLES_NO_SERVICES + f"Message: {message}\nLabel:", SYSTEM_NO_SERVICES
 
 
 class LLMDetector:
@@ -48,9 +68,9 @@ class LLMDetector:
     def _label_live(self, message, services, tries=2):
         """Ask the model; an unreadable reply gets one more try, then the keyword label."""
         try:
+            prompt, system = prompt_for(message, services)
             for _ in range(tries):
-                reply = complete(prompt_for(message, services), self.model, self.provider,
-                                 system=SYSTEM, max_tokens=8)
+                reply = complete(prompt, self.model, self.provider, system=system, max_tokens=8)
                 label = parse_label(reply)
                 if label:
                     return {"label": label, "source": "live"}
@@ -67,7 +87,8 @@ class LLMDetector:
         services_by_client = services_by_client if self.use_services else {}
         services_by_client = services_by_client or {}
         items = [(m, services_by_client.get(c)) for m, c in zip(requests["message"], requests["client"])]
-        keys = [label_key(m, s, self.model, PROMPT_VERSION) for m, s in items]
+        keys = [label_key(m, s, self.model, PROMPT_VERSION if s else PROMPT_VERSION_NO_SERVICES)
+                for m, s in items]
         out = [None] * len(items)
         todo = {}
         for i, k in enumerate(keys):

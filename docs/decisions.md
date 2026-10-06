@@ -33,6 +33,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
 | D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
 | D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
+| D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Assumed | Yes (benchmark 4) |
 
 ---
 
@@ -437,6 +438,29 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Baseline wins on all three seeds (MAE 0.143 / 0.132 / 0.147 against LightGBM 0.172 / 0.134 / 0.181). `forecast.model` stays `baseline`. LightGBM code is kept so the comparison can be re-run and reported.
 - **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json`; `tests/test_forecast.py` checks the split and that features ignore future months.
 - **Related decisions:** D-06, D-11, D-15
+
+## D-22: Benchmark 4 result; prompt for clients without services fixed
+- **ID:** D-22
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** A teammate labelled the 150-message sheet by hand. Benchmark 4 compares the LLM detector with the keyword baseline against those labels, each with and without the client's services (D-17). The first run showed the LLM without services answering "unclear" to almost everything (accuracy 0.14): the prompt said "Services covered: not known", which the model read as "cannot tell". In the app, every client without a `clients.csv` entry would have been labelled "unclear".
+- **Options considered:**
+  1. Report the broken result as it stood.
+  2. Fix the prompt for unknown services (leave the services line out, use examples without services, its own prompt version so saved labels stay apart), re-run once, and report both the bug and the fixed result.
+- **Decision:** Option 2. The prompt used when services are known was not changed, so the 2,598 saved demo labels stay valid. This was one fix of a broken case, not repeated tuning against the hand labels.
+- **Factors that led to it:** The broken prompt was a product bug, not a fair "without services" condition.
+- **Trade-offs accepted:** The prompt was changed after seeing test results; that is disclosed here and the change was limited to the broken case.
+- **Expected effect:** The LLM beats the keyword baseline, and services help.
+- **Actual measured effect:** Against 150 hand labels (73 extra unpaid, 58 in scope, 19 unclear). Accuracy; precision / recall / F1 for "extra unpaid":
+  - Keyword without services: 0.56; 0.90 / 0.49 / 0.64.
+  - Keyword with services: 0.76; 0.90 / 0.75 / 0.82.
+  - LLM without services (fixed prompt): 0.75; 0.93 / 0.69 / 0.79.
+  - LLM with services: 0.73; 0.88 / 0.69 / 0.77.
+  - Before the fix, LLM without services: 0.14; 1.00 / 0.01 / 0.03.
+
+  The expected effect did not happen. The LLM did not beat the keyword baseline. Services helped the keyword baseline a lot (F1 0.64 to 0.82) but not the LLM (0.79 to 0.77). With 150 messages, differences of a few points are within noise (about plus or minus 0.07 on accuracy). The human agreed with the generator's own labels on only 73% of messages, so the "right" label is often debatable. The keyword baseline's lead is partly circular: its list of deliverable words overlaps the generator's item list, both written by the assistant. The LLM has no such advantage, and real client wording would not match a fixed word list.
+- **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json`; hand labels in `labelling/label_sheet_seed42_labeled.csv`.
+- **Related decisions:** D-14, D-15, D-17
 
 ---
 

@@ -95,7 +95,7 @@ tests/
     test_scope.py           Exists: keyword rules, saved labels, LLM detector against a fake server
     test_forecast.py        Exists: features, time split, no future data in features
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
-labelling/                  The 150-message label sheet for the human labeller (benchmark 4), CSV and workbook
+labelling/                  The 150-message label sheet (blank and hand-labelled), CSV and workbook (benchmark 4)
 labels/saved_labels.json    Saved request labels for the demo data (D-15)
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
@@ -426,6 +426,8 @@ The forecast is not shown on the screen yet.
 | `KeywordDetector.label_requests`, `label_one(message, services=None)` | `scope/keyword.py` | Word rules; with services, a named deliverable counts as in scope if covered, extra if not |
 | `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time, saving every 50; an unreadable reply is retried once, then the keyword label is used; a failed call for one message also falls back to the keyword label instead of stopping the run (`source` says which); only live labels are saved |
 | `label_key(message, services, model, prompt_version)`, `LabelStore` | `scope/store.py` | Key and file for saved labels (`labels/saved_labels.json`) |
+| `prompt_for(message, services)` | `scope/llm_detector.py` | Prompt and system message. With services: `PROMPT_VERSION`; without: the services line is left out, `PROMPT_VERSION_NO_SERVICES` (D-22) |
+| `scores(predicted, actual, positive="extra_unpaid")` | `scope/metrics.py` | Accuracy, per-label precision / recall / F1, macro F1 (benchmark 4) |
 | `get_detector(name, cfg)`, `services_by_client(tables)` | `scope/registry.py` | `keyword` or `llm`; services text per client from `clients.csv` |
 
 `python scripts/label_requests.py --limit N` labels N requests and prints the
@@ -439,7 +441,9 @@ not yet shown on the screen or used by any later stage.
 
 `python scripts/run_benchmarks.py` writes `out/benchmarks.json`: benchmark 1
 (runs the hand-calculation tests), 2 (planted loss-makers in the bottom 10 and
-bottom K, against revenue ranking), 3 (D-21), 5 (rule-based mapper on the 10
-header styles; circular) and 7 (load to ranked list). Benchmarks 4 and 6 are
+bottom K, against revenue ranking), 3 (D-21), 4 (keyword and LLM detectors,
+each with and without services, against `--hand-labels`, default
+`labelling/label_sheet_seed42_labeled.csv`; D-22), 5 (rule-based mapper on the
+10 header styles; circular) and 7 (load to ranked list). Benchmark 6 is
 reported as pending. With `--seeds`, benchmarks 2 and 3 are repeated on extra
 generated datasets. This is the only script that reads the truth file.
