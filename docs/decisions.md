@@ -34,6 +34,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
 | D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
 | D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Assumed | Yes (benchmark 4) |
+| D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Assumed | Yes (benchmark 4) |
 
 ---
 
@@ -460,7 +461,24 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 
   The expected effect did not happen. The LLM did not beat the keyword baseline. Services helped the keyword baseline a lot (F1 0.64 to 0.82) but not the LLM (0.79 to 0.77). With 150 messages, differences of a few points are within noise (about plus or minus 0.07 on accuracy). The human agreed with the generator's own labels on only 73% of messages, so the "right" label is often debatable. The keyword baseline's lead is partly circular: its list of deliverable words overlaps the generator's item list, both written by the assistant. The LLM has no such advantage, and real client wording would not match a fixed word list.
 - **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json`; hand labels in `labelling/label_sheet_seed42_labeled.csv`.
-- **Related decisions:** D-14, D-15, D-17
+- **Related decisions:** D-14, D-15, D-17, D-23
+
+## D-23: Ship the LLM labeller with services, as a reviewed suggestion
+- **ID:** D-23
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** Benchmark 4 (D-22) found the LLM labeller with services (accuracy 0.73) within noise of the keyword baseline with services (0.76) and the LLM without services (0.75). A detector has to be chosen for `scope.detector`.
+- **Options considered:**
+  1. Keyword rules with services: best measured score, instant and free, but its lead is partly circular (its word list overlaps the generator's items).
+  2. LLM with services: within noise of the best, not tied to a fixed word list, uses the services owners enter (D-17).
+  3. LLM without services: slightly higher score, but makes the services field pointless for labels.
+- **Decision:** Option 2, chosen by the team lead on 2026-10-06. `scope.detector` is set to `llm`. The keyword rules stay as the fallback when an LLM call fails.
+- **Factors that led to it:** Real client wording will not match a fixed word list, so the keyword score is unlikely to hold on real messages. The LLM's score is not proven on real messages either; the choice rests on that judgement, not on a measured win.
+- **Trade-offs accepted:** Not the best measured score on generated data. No claim may be made that the LLM labeller is more accurate than the keyword rules. Labels are shown as suggestions for the owner to review, not as facts. Message text goes to a third-party provider (privacy, see `docs/project_overview.md` section 7.3).
+- **Expected effect:** Labels that hold up better than keyword rules on real client wording. Untested until real messages are available.
+- **Actual measured effect:** On generated data, same as D-22: accuracy 0.73; precision / recall / F1 for "extra unpaid" 0.88 / 0.69 / 0.77.
+- **Evidence:** `out/benchmarks.json` from `python scripts/run_benchmarks.py`, 2026-10-06.
+- **Related decisions:** D-14, D-17, D-22
 
 ---
 

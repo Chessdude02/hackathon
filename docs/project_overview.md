@@ -127,7 +127,7 @@ hand calculation done by a teammate who did not write or read the engine code.
 |---|---|---|
 | All money figures, ranking, worst case | **Code only** | Every number must be exact and traceable. An AI that invents one number in a "drop this client" recommendation would destroy trust. |
 | Forecast | **Simple rule** (the AI model lost the test) | We ship what measured best, not what sounds most impressive. |
-| Labelling client messages | **AI** (with keyword fallback) | Reading "can we make it pop more?" is a language task. |
+| Labelling client messages | **AI with the client's services** (keyword fallback), shown as a suggestion to review (D-23) | Reading "can we make it pop more?" is a language task. It tied a keyword rule on our data, so it is not claimed to be more accurate. |
 | Column mapping | **Word rules now; AI planned**, owner always confirms | A wrong mapping silently corrupts every number, so a person checks it. |
 | Explanations | **AI, planned**, given only computed numbers, with an automatic check | The AI writes words; code supplies every number. |
 

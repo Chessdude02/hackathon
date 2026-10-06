@@ -240,7 +240,7 @@ check has its own `tests/fixtures/hand_calc/config.yaml`. They are not based on 
 | `forecast.model` | Forecaster name from the registry | `baseline` |
 | `forecast.horizon_months` | How far ahead to predict | 3 |
 | `forecast.test_months` | Months held back for benchmark 3 | 6 |
-| `scope.detector` | Detector name from the registry | `keyword` |
+| `scope.detector` | Detector name from the registry: `keyword` or `llm` | `llm` (D-23) |
 | `llm.provider` | LLM provider used by `llm.py`. Known: `featherless` | `featherless` (D-14) |
 | `llm.model` | Model name passed to the provider | `Qwen/Qwen2.5-14B-Instruct` (D-14) |
 | `dataset` | Dataset loader name from the registry | `generated` |

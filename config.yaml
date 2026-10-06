@@ -12,7 +12,7 @@ forecast:
   horizon_months: 3
   test_months: 6
 scope:
-  detector: keyword
+  detector: llm
 llm:
   provider: featherless
   model: Qwen/Qwen2.5-14B-Instruct
