@@ -430,8 +430,10 @@ The forecast is not shown on the screen yet.
 
 `python scripts/label_requests.py --limit N` labels N requests and prints the
 time, which is the separate labelling timing D-15 asks for. On 2026-10-06, 60
-new messages took 49.8 s (all live, none fell back). Labels are not yet shown
-on the screen or used by any later stage.
+new messages took 49.8 s (all live, none fell back). The demo data was labelled
+ahead of time on 2026-10-06: 2,599 new messages in 2,003 s, saved in
+`labels/saved_labels.json`; a second run reused them all in 2.5 s. Labels are
+not yet shown on the screen or used by any later stage.
 
 ## 18. Benchmarks (Verified on 2026-10-06)
 

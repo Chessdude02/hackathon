@@ -29,6 +29,15 @@ planted patterns (clients that look large but lose money, slow payers, growing
 scope creep, noise). Ranking and forecast results on this data show that the
 code works. They do not show that it is accurate on real businesses.
 
+## Demo data was labelled ahead of time
+
+Each client request in the demo data is labelled (in scope, extra unpaid
+work, or unclear) by an LLM. Labelling all 2,601 demo requests took about 33
+minutes, so it was done once before the demo and the labels were saved in
+`labels/saved_labels.json` (D-15). In the demo, saved labels are reused and
+only new messages are sent to the LLM. The ranked client list never waits
+for labels.
+
 ## What was built during the event
 
 The hackathon ran from 3 October 2026 12:00 PM to 10 October 2026 12:00 PM EDT.
