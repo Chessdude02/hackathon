@@ -6,6 +6,7 @@ from clientprofit.scope.keyword import label_one
 from clientprofit.scope.store import LabelStore, label_key
 
 PROMPT_VERSION = "v1"
+SAVE_EVERY = 50
 LABELS = ("in_scope", "extra_unpaid", "unclear")
 SYSTEM = (
     "You label messages that clients send to their marketing agency. Reply with exactly one word.\n"
@@ -87,6 +88,8 @@ class LLMDetector:
                 for i in todo[k]:
                     out[i] = result
                 done += 1
+                if done % SAVE_EVERY == 0:
+                    self.store.save()  # long runs keep their work if stopped
                 if progress and (done % 10 == 0 or done == len(todo)):
                     progress(done, len(todo))
         if todo:

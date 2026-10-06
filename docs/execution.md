@@ -424,7 +424,7 @@ The forecast is not shown on the screen yet.
 | Function / class | File | What it does |
 |---|---|---|
 | `KeywordDetector.label_requests`, `label_one(message, services=None)` | `scope/keyword.py` | Word rules; with services, a named deliverable counts as in scope if covered, extra if not |
-| `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time; an unreadable reply is retried once, then the keyword label is used (`source` says which); only live labels are saved |
+| `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time, saving every 50; an unreadable reply is retried once, then the keyword label is used (`source` says which); only live labels are saved |
 | `label_key(message, services, model, prompt_version)`, `LabelStore` | `scope/store.py` | Key and file for saved labels (`labels/saved_labels.json`) |
 | `get_detector(name, cfg)`, `services_by_client(tables)` | `scope/registry.py` | `keyword` or `llm`; services text per client from `clients.csv` |
 

@@ -102,6 +102,7 @@ clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.ll
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector.__init__
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector._label_live
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.SAVE_EVERY
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.store.label_key
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.llm_detector.LABELS
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES
@@ -149,4 +150,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-143 call edges.
+144 call edges.
