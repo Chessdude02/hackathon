@@ -72,10 +72,11 @@ generator/                  Data generator. Never imported by src/clientprofit. 
     messages.py             Request message templates and the message bank loader
     messy.py                Planted data problems and the 10 header styles
     generate.py             generate(): writes the CSV files and the truth file
-    message_bank.json       Request messages, paraphrased once by an LLM and saved. Not created yet
+    message_bank.json       Request messages, paraphrased once by an LLM and saved. Exists: 326 messages
 scripts/
     generate_data.py        Exists
     llm_smoke_test.py       Exists: times one model on 20 messages (section 13)
+    build_message_bank.py   Exists: paraphrases the templates once into generator/message_bank.json (section 11)
     run_pipeline.py         Exists (section 15)
     run_benchmarks.py
     gen_callgraph.py        Exists and tested
@@ -87,6 +88,7 @@ tests/
     test_ingest_validate.py Exists: mapping, name cleaning, validation, planted problems found
     test_app.py             Exists: the Streamlit screen driven headless, demo data to ranked list
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
+labelling/                  The 150-message label sheet for the human labeller (benchmark 4), CSV and workbook
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
     truth/                  Truth files. Read only by the benchmark scripts
@@ -315,7 +317,7 @@ local fake server (`tests/test_llm.py`).
 - Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config. If it is not set, `PLACEHOLDER_KEY` is sent; in the build environment a proxy swaps in the real key.
 - Every request sends `User-Agent: clientprofit/0.1`. Cloudflare in front of Featherless blocks Python's default user agent with HTTP 403 (error 1010).
 - `LLM_BASE_URL` overrides the provider's address. Only the tests use it.
-- Retries: HTTP 429, 500, 502, 503, 504 and connection errors are retried 3 times, waiting 1, 2 and 4 seconds.
+- Retries: HTTP 429, 500, 502, 503, 504, connection errors, and HTTP 200 replies whose body is an error (Featherless does this when busy) are retried 3 times, waiting 1, 2 and 4 seconds.
 - Failure path: an unknown provider, a refused key (HTTP 401/403, message names the variable and shows the server's reply), a failed call or an unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
 
 Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
@@ -383,3 +385,15 @@ month. `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
 Measured on seed 42 data, 50 clients: `scripts/run_pipeline.py` loads, maps,
 validates and ranks in 0.88 s; on the screen, "Rank clients" to ranked list
 took 0.53 s. Request labelling is not in this path (D-15).
+
+### Message bank (Verified on 2026-10-06)
+
+`python scripts/build_message_bank.py` sends each of the 42 templates to the
+LLM (`Qwen/Qwen2.5-14B-Instruct`, 2 calls at a time) for 7 rewrites, keeps a
+rewrite only if it has exactly the template's `{item}` / `{day}` slots, and
+writes `generator/message_bank.json` (rewrites plus the original templates).
+Run on 2026-10-06: 43 s, 284 rewrites kept, 10 dropped for broken slots;
+bank sizes 110 in-scope, 105 extra unpaid, 111 unclear. The generator uses the
+bank when the file exists (`message_source` in the truth file says which).
+`labelling/label_sheet_seed42.xlsx` and `.csv` are the seed 42 label sheet
+made from it.

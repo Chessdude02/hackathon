@@ -10,6 +10,7 @@ from clientprofit import llm
 
 class FakeAPI(BaseHTTPRequestHandler):
     fail_first = 0
+    error_body_first = 0
     status = 200
     seen = []
 
@@ -25,6 +26,9 @@ class FakeAPI(BaseHTTPRequestHandler):
                             "agent": self.headers["User-Agent"], "body": body})
         if FakeAPI.status != 200:
             return self._reply(FakeAPI.status, {"error": "no"})
+        if FakeAPI.error_body_first > 0:
+            FakeAPI.error_body_first -= 1
+            return self._reply(200, {"error": {"message": "No successful response", "type": "server_error"}})
         if FakeAPI.fail_first > 0:
             FakeAPI.fail_first -= 1
             return self._reply(429, {"error": "busy"})
@@ -44,7 +48,7 @@ def fake(monkeypatch):
     monkeypatch.setenv(llm.BASE_URL_ENV, f"http://127.0.0.1:{server.server_port}")
     monkeypatch.setenv("FEATHERLESS_API_KEY", "test-key")
     monkeypatch.setattr(llm.time, "sleep", lambda s: None)
-    FakeAPI.seen, FakeAPI.fail_first, FakeAPI.status = [], 0, 200
+    FakeAPI.seen, FakeAPI.fail_first, FakeAPI.status, FakeAPI.error_body_first = [], 0, 200, 0
     yield FakeAPI
     server.shutdown()
 
@@ -62,6 +66,18 @@ def test_busy_server_is_retried(fake):
     fake.fail_first = 2
     assert llm.complete("hi", "m") == "extra_unpaid"
     assert len(fake.seen) == 3
+
+
+def test_error_body_with_http_200_is_retried(fake):
+    fake.error_body_first = 1
+    assert llm.complete("hi", "m") == "extra_unpaid"
+    assert len(fake.seen) == 2
+
+
+def test_error_body_every_time_raises(fake):
+    fake.error_body_first = 10
+    with pytest.raises(llm.LLMError, match="Provider error"):
+        llm.complete("hi", "m")
 
 
 def test_list_models(fake):

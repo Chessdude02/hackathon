@@ -45,7 +45,14 @@ def _request(url, key, key_env, body=None, timeout=120, retries=3):
     for attempt in range(retries + 1):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read())
+                out = json.loads(resp.read())
+            # Featherless can answer HTTP 200 with an error body when busy; retry those too.
+            if isinstance(out, dict) and "error" in out and "choices" not in out and "data" not in out:
+                if attempt < retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise LLMError(f"Provider error after {retries + 1} tries: {str(out['error'])[:300]}")
+            return out
         except urllib.error.HTTPError as e:
             if e.code in RETRY_STATUS and attempt < retries:
                 time.sleep(2 ** attempt)
