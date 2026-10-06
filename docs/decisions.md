@@ -17,7 +17,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-03 | 2026-10-04 | Target user is a small agency (5-30 staff) | Assumed | No |
 | D-04 | 2026-10-04 | One Python app with Streamlit | Assumed | No |
 | D-05 | 2026-10-04 | Profit calculation uses no machine learning | Assumed | No |
-| D-06 | 2026-10-04 | Forecast with LightGBM, baseline and drop gate | Assumed | No |
+| D-06 | 2026-10-04 | Forecast with LightGBM, baseline and drop gate | Assumed | Yes (gate failed: baseline ships) |
 | D-07 | 2026-10-04 | The LLM never does arithmetic | Assumed | No |
 | D-08 | 2026-10-04 | Generated data, kept separate from model code | Assumed | No |
 | D-09 | 2026-10-04 | Fixed out-of-scope list | Assumed | No |
@@ -32,6 +32,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Assumed | Yes (benchmark 1) |
 | D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
 | D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
+| D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
 
 ---
 
@@ -132,9 +133,9 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Factors that led to it:** Small tabular data suits gradient boosting. The gate protects the schedule.
 - **Trade-offs accepted:** The project may ship with no trained model in it.
 - **Expected effect:** Lower mean absolute error than the baseline on the last 6 months, using a split by time (benchmark 3).
-- **Actual measured effect:** Not measured yet.
-- **Evidence:** None yet.
-- **Related decisions:** D-05, D-08
+- **Actual measured effect:** LightGBM did not beat the baseline on any of 3 generated datasets. Mean absolute error of next-quarter operating margin, last 6 months, time split: seed 42 baseline 0.143, LightGBM 0.172; seed 1 baseline 0.132, LightGBM 0.134; seed 2 baseline 0.147, LightGBM 0.181. The gate applies: LightGBM is dropped, the baseline ships with trend lines.
+- **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06 (`out/benchmarks.json`), set-up in D-21.
+- **Related decisions:** D-05, D-08, D-21
 
 ## D-07: The LLM never does arithmetic
 - **ID:** D-07
@@ -415,6 +416,27 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Not applicable.
 - **Evidence:** Team lead approval in chat, 2026-10-06.
 - **Related decisions:** D-19
+
+## D-21: Forecast set-up: operating margin, time split, baseline ships
+- **ID:** D-21
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** D-06 needs a fair test of LightGBM against "next quarter equals last quarter", with no future data in the features.
+- **Options considered:**
+  1. Forecast margin including late-payment cost.
+  2. Forecast operating margin, (revenue - labour cost) / revenue, and keep late payment as a separate days-to-pay feature.
+- **Decision:** Option 2, with this set-up:
+  - Target: operating margin over the next 3 months (sum of profit / sum of revenue, D2c).
+  - Features at each month, from that month and earlier only: 3-month margin, the 3 months before it, their difference, unbilled share of hours, growth in hours, request count and its change (no labels, so the forecast never waits for labelling, D-15), revenue and its growth, days to pay (only payments made by that month), months of history.
+  - LightGBM (LightGBM's own API, no scikit-learn) predicts the change from last quarter's margin and adds it back. Settings were fixed before seeing test results and not tuned afterwards.
+  - Split by time: test origins whose 3 target months fall in the last 6 months; training origins whose targets end before the test period starts. Rows need 6 months of history and at least $1,000 revenue in both windows.
+  - Checked on 3 generated datasets (seeds 42, 1, 2), not one.
+- **Factors that led to it:** A month's late cost depends on payments made later, so using it would leak the future. Three seeds guard against a lucky draw.
+- **Trade-offs accepted:** The forecast ignores late-payment cost; that cost still counts in the ranking. About 360 to 410 training rows only. Clients with under $1,000 a quarter are not scored.
+- **Expected effect:** A fair verdict on D-06's gate.
+- **Actual measured effect:** Baseline wins on all three seeds (MAE 0.143 / 0.132 / 0.147 against LightGBM 0.172 / 0.134 / 0.181). `forecast.model` stays `baseline`. LightGBM code is kept so the comparison can be re-run and reported.
+- **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json`; `tests/test_forecast.py` checks the split and that features ignore future months.
+- **Related decisions:** D-06, D-11, D-15
 
 ---
 

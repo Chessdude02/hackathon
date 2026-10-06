@@ -29,12 +29,14 @@ How the code runs. This file must match the actual code at all times.
 | Create generated data | `python scripts/generate_data.py --out data/generated --seed 42` (optional: `--truth data/truth`, `--clients 50`) |
 | Run the app | `streamlit run app.py` (verified) |
 | Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` (verified; optional `--exclude-suggested`, `--config`) |
-| Run all benchmarks | `python scripts/run_benchmarks.py --data data/generated --out out/benchmarks.json` |
+| Run all benchmarks | `python scripts/run_benchmarks.py --data data/generated --out out/benchmarks.json` (verified; also `--truth`, `--seeds`) |
+| Label requests ahead of time | `python scripts/label_requests.py --data data/generated` (verified; `--limit`, `--detector`, `--no-services`, `--store`, `--out`) |
+| Build the message bank (once) | `python scripts/build_message_bank.py` (verified) |
 | Run tests | `pytest` |
 | Regenerate the call graph | `python scripts/gen_callgraph.py` |
 | Check the call graph is current | `python scripts/gen_callgraph.py --check` |
 
-Verified on 2026-10-05: Install, Create generated data, Run the app, Run the pipeline with no screen, Run tests, and both call-graph commands. The benchmark command does not exist yet.
+Verified on 2026-10-06: every command in this table.
 
 ## 2. Folder layout (Planned)
 
@@ -50,18 +52,20 @@ src/clientprofit/
     ingest.py               Loads CSV files, maps messy columns to the schema, unifies client names. Exists (section 14)
     validate.py             Finds missing clients, date gaps, bad values. Exists (section 14)
     cost_engine.py          Profit per client per month. Arithmetic only. Exists (section 14)
-    features.py             Client-month features for the forecast
+    features.py             Client-month features for the forecast. Exists (section 16)
     recommend.py            Rules and simulation: one action per client
     explain.py              Plain-language text, plus the number check
     llm.py                  The only file that calls an LLM API. Exists (section 13)
-    forecast/
+    forecast/               Exists (section 16)
         registry.py         Name -> forecaster
         baseline.py         Next quarter equals last quarter
-        lightgbm_model.py   LightGBM forecaster
-    scope/
-        registry.py         Name -> detector
+        lightgbm_model.py   LightGBM forecaster (lost the gate, D-21)
+        evaluate.py         Time split and mean absolute error for benchmark 3
+    scope/                  Exists (section 17)
+        registry.py         Name -> detector; services per client
         keyword.py          Keyword baseline
         llm_detector.py     LLM-based detector
+        store.py            Saved labels (D-15)
     datasets/
         registry.py         Name -> dataset loader
         generated.py        Loader for generated data
@@ -78,7 +82,8 @@ scripts/
     llm_smoke_test.py       Exists: times one model on 20 messages (section 13)
     build_message_bank.py   Exists: paraphrases the templates once into generator/message_bank.json (section 11)
     run_pipeline.py         Exists (section 15)
-    run_benchmarks.py
+    label_requests.py       Exists (section 17)
+    run_benchmarks.py       Exists (section 18)
     gen_callgraph.py        Exists and tested
 tests/
     test_generator.py       Exists
@@ -87,8 +92,11 @@ tests/
     test_cost_engine.py     Exists: benchmark 1 and one test per calculation
     test_ingest_validate.py Exists: mapping, name cleaning, validation, planted problems found
     test_app.py             Exists: the Streamlit screen driven headless, demo data to ranked list
+    test_scope.py           Exists: keyword rules, saved labels, LLM detector against a fake server
+    test_forecast.py        Exists: features, time split, no future data in features
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 labelling/                  The 150-message label sheet for the human labeller (benchmark 4), CSV and workbook
+labels/saved_labels.json    Saved request labels for the demo data (D-15)
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
     truth/                  Truth files. Read only by the benchmark scripts
@@ -169,9 +177,9 @@ app.main
 | `ingest.map_columns` | raw table | mapping, confidence | Uses the LLM. Result needs user confirmation. Not built; `ingest.propose_mapping` (rule-based, section 14) is the fallback |
 | `validate.validate_inputs` | tables, settings, merged names | list of problems | Never drops rows (section 14) |
 | `cost_engine.compute_client_month_profit` | invoices, time entries, settings, requests | client-month table, invoices with costs, time entries with costs, as-of date | No LLM, no model. Fully tested (section 14) |
-| `features.build_features` | profit table, request labels | feature table | Uses only data up to each month |
-| `<forecaster>.fit` / `.predict` | feature table | next-quarter margin per client | Chosen by `forecast.model` in config |
-| `<detector>.label_requests` | requests table | one label per request | Chosen by `scope.detector` in config |
+| `features.build_features` | pipeline result | feature table with targets | Uses only data up to each month; no request labels (section 16) |
+| `<forecaster>.fit` / `.predict` | feature table | next-quarter operating margin | Chosen by `forecast.model` in config (section 16) |
+| `<detector>.label_requests` | requests, services per client, progress | one {label, source} per request | Chosen by `scope.detector` in config (section 17) |
 | `recommend.recommend_actions` | profit, forecast, labels, config | one action per client with dollar effect | Rules, not a model |
 | `explain.write_explanations` | computed tables | text per client | Receives numbers, never computes them |
 | `explain.check_numbers` | text, computed tables | pass or fail | A fail triggers the template text |
@@ -299,7 +307,7 @@ Failure paths: `n_clients` outside 40-60 raises `ValueError`. No other checks.
 
 ## 12. Tests (Verified on 2026-10-05)
 
-`pytest` runs every file in `tests/`: generator, project rules, LLM wrapper, cost engine, ingest and validation, and the app.
+`pytest` runs every file in `tests/`: generator, project rules, LLM wrapper, cost engine, ingest and validation, app, scope and forecast.
 `test_project_rules.py` runs `python scripts/gen_callgraph.py --check`, so a
 stale call graph fails the test run. It also fails if any file in
 `src/clientprofit` imports `generator`.
@@ -397,3 +405,39 @@ bank sizes 110 in-scope, 105 extra unpaid, 111 unclear. The generator uses the
 bank when the file exists (`message_source` in the truth file says which).
 `labelling/label_sheet_seed42.xlsx` and `.csv` are the seed 42 label sheet
 made from it.
+
+## 16. Features and forecast (Verified on 2026-10-06)
+
+| Function / class | File | What it does |
+|---|---|---|
+| `build_features(result, horizon=3)` | `features.py` | One row per client-month: features from that month and earlier (`FEATURES`), plus `target_margin` and `target_revenue` for the next 3 months. Operating margin, no late cost (D-21) |
+| `BaselineForecaster` | `forecast/baseline.py` | Predicts `margin_3m` |
+| `LightGBMForecaster` | `forecast/lightgbm_model.py` | Predicts the change from `margin_3m` with LightGBM's own API |
+| `get_forecaster(name, seed=42)` | `forecast/registry.py` | `baseline` or `lightgbm` |
+| `time_split(features, test_months=6, horizon=3)`, `evaluate(...)`, `mae(...)` | `forecast/evaluate.py` | Benchmark 3 split and score |
+
+Gate result (D-06, D-21): the baseline wins, so `forecast.model` is `baseline`.
+The forecast is not shown on the screen yet.
+
+## 17. Request labelling (Verified on 2026-10-06)
+
+| Function / class | File | What it does |
+|---|---|---|
+| `KeywordDetector.label_requests`, `label_one(message, services=None)` | `scope/keyword.py` | Word rules; with services, a named deliverable counts as in scope if covered, extra if not |
+| `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time; an unreadable reply is retried once, then the keyword label is used (`source` says which); only live labels are saved |
+| `label_key(message, services, model, prompt_version)`, `LabelStore` | `scope/store.py` | Key and file for saved labels (`labels/saved_labels.json`) |
+| `get_detector(name, cfg)`, `services_by_client(tables)` | `scope/registry.py` | `keyword` or `llm`; services text per client from `clients.csv` |
+
+`python scripts/label_requests.py --limit N` labels N requests and prints the
+time, which is the separate labelling timing D-15 asks for. On 2026-10-06, 60
+new messages took 49.8 s (all live, none fell back). Labels are not yet shown
+on the screen or used by any later stage.
+
+## 18. Benchmarks (Verified on 2026-10-06)
+
+`python scripts/run_benchmarks.py` writes `out/benchmarks.json`: benchmark 1
+(runs the hand-calculation tests), 2 (planted loss-makers in the bottom 10 and
+bottom K, against revenue ranking), 3 (D-21), 5 (rule-based mapper on the 10
+header styles; circular) and 7 (load to ranked list). Benchmarks 4 and 6 are
+reported as pending. With `--seeds`, benchmarks 2 and 3 are repeated on extra
+generated datasets. This is the only script that reads the truth file.

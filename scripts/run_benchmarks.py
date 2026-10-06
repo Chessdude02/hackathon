@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Run the benchmarks and write the numbers to a JSON file.
+
+Usage:
+    python scripts/run_benchmarks.py --data data/generated --truth data/truth/truth_seed42.json \
+        --out out/benchmarks.json [--seeds 1 2]
+
+The only script that reads the generator's truth file (D-08). Benchmarks 2 to 5
+run on generated data: they show the code works, not that it is accurate on
+real businesses.
+"""
+import argparse
+import json
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import pandas as pd
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(REPO))
+
+from clientprofit import config, ingest, pipeline, validate  # noqa: E402
+from clientprofit.features import build_features  # noqa: E402
+from clientprofit.forecast.evaluate import evaluate  # noqa: E402
+from clientprofit.forecast.registry import get_forecaster  # noqa: E402
+
+
+def run_on(data):
+    """Pipeline with the suggested mapping and suggested exclusions, timed."""
+    t0 = time.perf_counter()
+    cfg = config.load_config()
+    costs = Path(data) / "staff_costs.csv"
+    if costs.exists():
+        cfg["staff_costs"] = config.read_staff_costs(costs)
+    tables = pipeline.apply_mappings(pipeline.load_files(pipeline.find_files(data)))
+    result = pipeline.run_pipeline(tables, cfg, pipeline.suggested_exclusions(validate.validate_inputs(tables, cfg)))
+    result["seconds_upload_to_ranked"] = time.perf_counter() - t0
+    return result
+
+
+def bench1():
+    run = subprocess.run([sys.executable, "-m", "pytest", "-q", "tests/test_cost_engine.py", "-k", "benchmark1"],
+                         cwd=REPO, capture_output=True, text=True)
+    return {"passed": run.returncode == 0, "detail": run.stdout.strip().splitlines()[-1]}
+
+
+def bench2(result, truth):
+    """Share of planted loss-making clients found in the bottom 10 (and bottom K) of the ranking,
+    against ranking by revenue alone."""
+    key = ingest.client_key
+    planted = {key(n) for n, c in truth["clients"].items() if c["loss_making"]}
+    ranked = result["ranked"]
+    by_profit = [key(c) for c in ranked.sort_values("profit_last_12m")["client"]]
+    by_revenue = [key(c) for c in ranked.sort_values("revenue_last_12m")["client"]]
+    k = len(planted)
+    found = lambda order, n: len(planted & set(order[:n]))  # noqa: E731
+    return {"planted_loss_making": k, "ranked_clients": len(ranked),
+            "bottom10_profit": f"{found(by_profit, 10)}/{min(10, k)}",
+            "bottom10_revenue": f"{found(by_revenue, 10)}/{min(10, k)}",
+            "bottom10_share_profit": round(found(by_profit, 10) / k, 3),
+            "bottom10_share_revenue": round(found(by_revenue, 10) / k, 3),
+            "bottomK_profit": f"{found(by_profit, k)}/{k}", "bottomK_revenue": f"{found(by_revenue, k)}/{k}",
+            "note": "Bottom 10 can hold at most 10 of K planted clients; bottom K shows the full picture."}
+
+
+def bench3(result, cfg):
+    f = build_features(result, cfg["forecast"]["horizon_months"])
+    return evaluate(f, [get_forecaster("baseline"), get_forecaster("lightgbm")],
+                    cfg["forecast"]["test_months"], cfg["forecast"]["horizon_months"])
+
+
+def bench5(data, truth):
+    total = correct = 0
+    for style, maps in truth["header_mappings"].items():
+        if "main" in style:
+            continue
+        for table, expected in maps.items():
+            headers = list(pd.read_csv(Path(data) / "header_variants" / style / f"{table}.csv", nrows=0).columns)
+            got = ingest.propose_mapping(headers, table)
+            total += len(headers)
+            correct += sum(got[h] == expected.get(h) for h in headers)
+    return {"files": 10, "headers": total, "correct": correct, "accuracy": round(correct / total, 3),
+            "mapper": "rule-based (ingest.propose_mapping)",
+            "note": "Circular: the header styles and the word list were written by the same person."}
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data", default="data/generated")
+    ap.add_argument("--truth", default="data/truth/truth_seed42.json")
+    ap.add_argument("--out", default="out/benchmarks.json")
+    ap.add_argument("--seeds", type=int, nargs="*", default=[1, 2], help="extra generated seeds for benchmarks 2-3")
+    args = ap.parse_args()
+
+    cfg = config.load_config()
+    truth = json.loads(Path(args.truth).read_text())
+    result = run_on(args.data)
+    out = {"generated_data_note": "Benchmarks 2, 3 and 5 run on generated data: they show the code works, "
+                                  "not that it is accurate on real businesses.",
+           "1_cost_engine_vs_hand_calculation": bench1(),
+           "2_ranking": {f"seed {truth['seed']}": bench2(result, truth)},
+           "3_forecast_mae": {f"seed {truth['seed']}": bench3(result, cfg)},
+           "4_scope_detector": "Pending: needs the 150 hand labels.",
+           "5_column_mapping": bench5(args.data, truth),
+           "6_invented_numbers": "Pending: explanations not built.",
+           "7_speed": {"clients": len(result["totals"]),
+                       "seconds_upload_to_ranked": round(result["seconds_upload_to_ranked"], 2),
+                       "note": "Command-line load, map, validate, rank. Request labelling is timed separately (D-15)."}}
+    if args.seeds:
+        from generator.generate import generate
+        for seed in args.seeds:
+            d = Path(tempfile.mkdtemp())
+            t = json.loads(generate(seed, 50, d / "data", d / "truth").read_text())
+            r = run_on(d / "data")
+            out["2_ranking"][f"seed {seed}"] = bench2(r, t)
+            out["3_forecast_mae"][f"seed {seed}"] = bench3(r, cfg)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(json.dumps(out, indent=1))
+    print(json.dumps(out, indent=1))
+
+
+if __name__ == "__main__":
+    main()

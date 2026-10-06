@@ -6,6 +6,7 @@ Each line reads: caller -> callee.
 ```
 clientprofit.config -> clientprofit.config.DEFAULT_PATH
 clientprofit.config -> clientprofit.config.REPO
+clientprofit.config -> clientprofit.scope.store.DEFAULT_PATH
 clientprofit.config._get -> clientprofit.config.ConfigError
 clientprofit.config.check_config -> clientprofit.config.ConfigError
 clientprofit.config.check_config -> clientprofit.config.RULES
@@ -21,6 +22,21 @@ clientprofit.cost_engine.compute_client_totals -> clientprofit.schema.SRC_ROW
 clientprofit.cost_engine.invoice_costs -> clientprofit.cost_engine._check
 clientprofit.cost_engine.labour_costs -> clientprofit.cost_engine.CostEngineError
 clientprofit.cost_engine.labour_costs -> clientprofit.cost_engine._check
+clientprofit.features.build_features -> clientprofit.features.WINDOW
+clientprofit.features.build_features -> clientprofit.features._days_to_pay
+clientprofit.features.build_features -> clientprofit.features._monthly
+clientprofit.forecast.evaluate.evaluate -> clientprofit.forecast.evaluate.mae
+clientprofit.forecast.evaluate.evaluate -> clientprofit.forecast.evaluate.time_split
+clientprofit.forecast.evaluate.time_split -> clientprofit.forecast.evaluate.MIN_MONTHS
+clientprofit.forecast.evaluate.time_split -> clientprofit.forecast.evaluate.MIN_REVENUE
+clientprofit.forecast.lightgbm_model.LightGBMForecaster.__init__ -> clientprofit.forecast.lightgbm_model.PARAMS
+clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.features.FEATURES
+clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.forecast.lightgbm_model.ROUNDS
+clientprofit.forecast.lightgbm_model.LightGBMForecaster.importance -> clientprofit.features.FEATURES
+clientprofit.forecast.lightgbm_model.LightGBMForecaster.predict -> clientprofit.features.FEATURES
+clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.baseline.BaselineForecaster
+clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster
+clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster.__init__
 clientprofit.ingest._to_bool -> clientprofit.ingest.FALSE_WORDS
 clientprofit.ingest._to_bool -> clientprofit.ingest.TRUE_WORDS
 clientprofit.ingest.apply_mapping -> clientprofit.ingest.coerce_types
@@ -70,6 +86,31 @@ clientprofit.schema -> clientprofit.schema.SRC_FILE
 clientprofit.schema -> clientprofit.schema.SRC_ROW
 clientprofit.schema -> clientprofit.schema.TIME_ENTRIES
 clientprofit.schema -> clientprofit.schema.TIME_ENTRIES_REQUIRED
+clientprofit.scope.keyword.KeywordDetector.label_requests -> clientprofit.scope.keyword.label_one
+clientprofit.scope.keyword._named -> clientprofit.scope.keyword.DELIVERABLES
+clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword.EXTRA_WORDS
+clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword.IN_SCOPE_WORDS
+clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword._named
+clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore
+clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore.__init__
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.llm.LLMError
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.llm.complete
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.keyword.label_one
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.SYSTEM
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.parse_label
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.prompt_for
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector.__init__
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector._label_live
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.store.label_key
+clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.llm_detector.LABELS
+clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES
+clientprofit.scope.registry.get_detector -> clientprofit.scope.keyword.KeywordDetector
+clientprofit.scope.registry.get_detector -> clientprofit.scope.llm_detector.LLMDetector
+clientprofit.scope.registry.get_detector -> clientprofit.scope.llm_detector.LLMDetector.__init__
+clientprofit.scope.store.LabelStore -> clientprofit.config.DEFAULT_PATH
+clientprofit.scope.store.LabelStore -> clientprofit.scope.store.DEFAULT_PATH
+clientprofit.scope.store.LabelStore.get -> clientprofit.scope.store.LabelStore.__init__
 clientprofit.validate._bad_values -> clientprofit.schema.SRC_ROW
 clientprofit.validate._bad_values -> clientprofit.validate.WARNING
 clientprofit.validate._bad_values -> clientprofit.validate._problem
@@ -108,4 +149,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-102 call edges.
+143 call edges.
