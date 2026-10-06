@@ -73,8 +73,8 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **Explanations** | Two or three plain sentences per client, written by the AI using only numbers our code computed. An automatic check rejects any text with a number not in the figures and shows standard wording instead. | Built: 0 invented numbers in 48 texts |
 | **Screen** | Streamlit app: data source, column check, settings, problems, ranked list with actions and warnings, scope-creep signals with progress, client detail. Requests and services are optional. | Built (rough) |
 | **Data generator** | Creates a realistic fake agency (50 clients, 24 months) with planted patterns, because no real data was available. | Built |
-| **Benchmarks** | One script runs the benchmarks and writes the numbers to a file. | Built (6 of 7) |
-| **Tests** | 100 automated tests, including one for every cost calculation. | Built, all passing |
+| **Benchmarks** | One script runs the benchmarks and writes the numbers to a file. | Built (all 7) |
+| **Tests** | 128 automated tests, including one for every cost calculation. | Built, all passing |
 
 ### 4.2 Planned (days 4 to 6)
 
@@ -82,7 +82,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 |---|---|
 | **Forecast on the screen** | Trend lines per client next to the action. |
 | **Services table on the settings screen** | Type each client's services in the app instead of uploading a file. |
-| **Deployment** | A public link to the app. |
+| **Deployment** | A public link on Streamlit Community Cloud (D-28). The code side is done: the app builds its own demo data on first start. The repo owner still has to deploy it. |
 
 ---
 
@@ -146,7 +146,7 @@ accurate on real businesses.
 | # | Benchmark | Result | What it really tells you |
 |---|---|---|---|
 | 1 | Cost engine vs a hand calculation (10 clients) | **Exact match** on all 29 client-months and 10 client totals | The arithmetic is right. This one is not circular. |
-| 2 | Planted loss-making clients found in the bottom 10 | **10 of 10** by profit vs **2 of 10** by revenue (same on 3 datasets) | Ranking by revenue hides losing clients. But the test is nearly circular: "loss-making" in the test data is computed with the same rules as the engine. |
+| 2 | Planted loss-making clients found at the bottom (bottom K, K = number of planted losers; D-27) | **All 15** planted loss-makers are the 15 lowest by profit; ranking by revenue puts only **3** there. Seeds 1 and 2: 12/12 vs 4/12, 15/15 vs 3/15. Bottom 10: 10/10 vs 2 to 4/10. | Ranking by revenue hides losing clients. But the test is nearly circular: "loss-making" in the test data is computed with the same rules as the engine, so the perfect profit score mostly shows the wiring is right. The revenue gap is the real point. |
 | 3 | Forecast error, last 6 months, split by time | Baseline **0.143**, LightGBM **0.172** (baseline wins on all 3 datasets) | The AI model did not earn its place, so it was dropped. That is the honest result. |
 | 4 | Message labeller vs 150 messages labelled by a teammate | Keyword + services **0.76** accuracy, AI **0.73 to 0.75** | The AI ties a keyword rule on our generated messages. It does not beat it. The keyword rule's lead is partly circular (its word list overlaps the generator's). |
 | 5 | Column mapping on 10 header styles | **172 of 172** | Meaningless as it stands: the same person wrote the test headers and the word list. Needs real export headers. |

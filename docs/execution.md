@@ -102,12 +102,17 @@ labels/saved_labels.json    Saved request labels for the demo data (D-15)
 labels/saved_explanations.json  Saved explanations for the demo data (D-26)
 data/                       Input files. Not committed
     generated/              Written by scripts/generate_data.py
-    truth/                  Truth files. Read only by the benchmark scripts
+    truth/                  Truth files. Read only by the benchmark scripts (app.py may write one when it builds demo data, D-28; it never reads it)
 out/                        Results and benchmark numbers. Not committed
 docs/
     decisions.md
     execution.md
     callgraph.md            Auto-generated. Do not edit. Exists
+    project_overview.md     What the project does, results, implications. Exists
+    architecture.md         Diagram (Mermaid). Exists
+    deploy.md               Streamlit Community Cloud steps (D-28). Exists
+    demo_script.md          2-minute video script. Exists
+    devpost_draft.md        First draft of the submission text. Exists
 ```
 
 ## 3. End-to-end flow (Planned)
@@ -224,6 +229,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | LLM call fails during explanation | explain | Uses fixed template text | Plain template text |
 | Number check finds a number not in the tables | explain | Discards the text, uses the template | Plain template text |
 | Config key missing or wrong type | config | `ConfigError` at start-up | The key name and the expected value |
+| Demo data folder is empty (fresh deploy) | app | `ensure_demo_data()` builds seed-42 data once (D-28) | A spinner for about 10 seconds, then the demo |
 | Errors remain after the owner's exclusions | pipeline | `run_pipeline` returns `stopped` and does not run the cost engine | The errors to fix or exclude |
 
 ## 9. Configuration reference (Verified on 2026-10-05: file and checks exist; `forecast`, `scope`, `llm`, `dataset` and `random_seed` are checked but not yet used)
@@ -400,7 +406,12 @@ first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, monthly
 figures, the rows behind each month, the client's labelled requests, and an
 explanation written on opening (D-26; a note says when standard wording was used instead). `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
-`tests/test_app.py`).
+`tests/test_app.py`). A line at the top says the app is a demo and not for
+confidential data (D-28). If the demo folder has no `invoices.csv` (a fresh
+deploy), `ensure_demo_data()` in `app.py` builds it once per server with the
+generator, seed 42 and 50 clients (truth goes to the sibling `truth` folder,
+which the app never reads); measured 7.0 s on 2026-10-06, files byte-identical
+to the ones the saved labels were made from (D-28).
 
 Measured on seed 42 data, 50 clients: `scripts/run_pipeline.py` loads, maps,
 validates and ranks in 0.88 s; on the screen, "Rank clients" to ranked list
@@ -452,8 +463,8 @@ not yet shown on the screen or used by any later stage.
 ## 18. Benchmarks (Verified on 2026-10-06)
 
 `python scripts/run_benchmarks.py` writes `out/benchmarks.json`: benchmark 1
-(runs the hand-calculation tests), 2 (planted loss-makers in the bottom 10 and
-bottom K, against revenue ranking), 3 (D-21), 4 (keyword and LLM detectors,
+(runs the hand-calculation tests), 2 (planted loss-makers in the bottom K,
+the headline per D-27, and in the bottom 10, against revenue ranking), 3 (D-21), 4 (keyword and LLM detectors,
 each with and without services, against `--hand-labels`, default
 `labelling/label_sheet_seed42_labeled.csv`; D-22), 5 (rule-based mapper on the
 10 header styles; circular), 6 (explanations for every ranked client, written

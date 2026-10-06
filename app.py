@@ -10,7 +10,9 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(1, str(ROOT))  # for generator/, used only to build missing demo data (D-28)
 
 from clientprofit import config, explain, ingest, pipeline, recommend, schema, validate  # noqa: E402
 from clientprofit.scope.registry import get_detector, services_by_client  # noqa: E402
@@ -18,7 +20,9 @@ from clientprofit.scope.registry import get_detector, services_by_client  # noqa
 ASK_BEFORE_LABELLING = 200   # more new messages than this: show the time and ask first (D-15)
 SECONDS_PER_MESSAGE = 0.8    # measured 2026-10-06, 2 calls at a time (D-15)
 ACTION_ICON = {recommend.KEEP: "✅", recommend.RAISE: "💲", recommend.CUT: "✂️", recommend.END: "🛑"}
-DEMO = Path(os.environ.get("CLIENTPROFIT_DEMO_DIR", Path(__file__).resolve().parent / "data" / "generated"))
+DEMO = Path(os.environ.get("CLIENTPROFIT_DEMO_DIR", ROOT / "data" / "generated"))
+DEMO_SEED = 42           # the saved labels and explanations were made from seed 42 (D-15, D-26)
+DEMO_CLIENTS = 50
 IGNORE = "(ignore)"
 REQUIRED_FILES = ("invoices", "time_entries")  # requests and clients are optional
 
@@ -27,6 +31,17 @@ def money(v):
     if pd.isna(v):
         return ""
     return f"-${-v:,.0f}" if v < 0 else f"${v:,.0f}"
+
+
+@st.cache_resource(show_spinner=False)
+def ensure_demo_data(folder=DEMO):
+    """Build the demo files once per server if they are missing, e.g. on a fresh deploy (D-28).
+    Same seed as the saved labels, so the labels and explanations are reused, not re-bought."""
+    folder = Path(folder)
+    if not (folder / "invoices.csv").exists():
+        from generator.generate import generate  # app only; src/clientprofit never imports the generator
+        generate(DEMO_SEED, DEMO_CLIENTS, folder, folder.parent / "truth")
+    return str(folder)
 
 
 def load_demo():
@@ -261,11 +276,13 @@ def main():
     st.title("Client profit finder")
     cfg = config.load_config()
 
+    st.caption("Demo only: please don't upload confidential client data. Uploaded files stay in this "
+               "session, but request messages are sent to an outside AI service (Featherless) for labelling.")
     source = st.radio("Data", ["Upload my files", "Use demo data (generated)"], horizontal=True)
     if source.startswith("Use demo"):
         if not (DEMO / "invoices.csv").exists():
-            st.error("No demo data. Run: python scripts/generate_data.py --out data/generated --seed 42")
-            return
+            with st.spinner("Building the demo data (first start only, about 10 seconds)..."):
+                ensure_demo_data()
         if "loaded" not in st.session_state or st.session_state.get("source") != "demo":
             st.session_state.loaded, st.session_state.costs = load_demo()
             st.session_state.source = "demo"

@@ -45,3 +45,16 @@ def test_ranked_list_has_actions_and_asks_before_long_labelling(demo_dir, monkey
     # Fresh data: no saved labels, so the screen asks instead of making ~2,000 live calls (D-15)
     assert any(b.label == "Label them now" for b in at.button)
     assert any("Suggested action" in m.value for m in at.markdown)
+
+
+def test_missing_demo_data_is_built_on_first_start(tmp_path, monkeypatch):
+    """D-28: a fresh deploy has no data/ folder; choosing the demo builds it (seed 42) instead of failing."""
+    folder = tmp_path / "generated"
+    monkeypatch.setenv("CLIENTPROFIT_DEMO_DIR", str(folder))
+    at = AppTest.from_file(APP, default_timeout=180)
+    at.run()
+    assert any("Demo only" in c.value for c in at.caption)
+    at.radio[0].set_value("Use demo data (generated)").run()
+    assert not at.exception
+    assert (folder / "invoices.csv").exists() and (folder / "requests.csv").exists()
+    assert "1. Check the column mapping" in [h.value for h in at.header]

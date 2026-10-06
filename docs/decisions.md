@@ -38,6 +38,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Assumed | Yes (seed 42) |
 | D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Assumed | No |
 | D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Assumed | Yes (benchmark 6) |
+| D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Assumed | Yes (benchmark 2, 3 seeds) |
+| D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Assumed | Partly (tests; deploy not yet done) |
 
 ---
 
@@ -537,6 +539,39 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** 48 ranked clients on seed 42: 48 texts written by the LLM, 0 contained an invented number, 0 provider errors, 0 shown texts with an invented number; 107.1 s for all 48 (about 2.2 s each). The unit tests show the check does catch invented numbers (`tests/test_explain.py`), so zero is not a sign of a check that never fires.
 - **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06, `out/benchmarks.json` section 6.
 - **Related decisions:** D-07, D-14, D-24
+
+## D-27: Benchmark 2 headline is bottom K, bottom 10 second
+- **ID:** D-27
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** Benchmark 2 was written as "planted loss-making clients found in the bottom 10". Each dataset has 12 to 15 planted loss-makers (K), so a bottom 10 can never hold all of them and its share (at most 10 of K) understates the result.
+- **Options considered:**
+  1. Keep bottom 10 as the headline.
+  2. Headline the bottom K (K = number of planted loss-making clients): how many of the K lowest clients by profit are planted loss-makers, against ranking by revenue. Report bottom 10 as a second line.
+- **Decision:** Option 2, approved by the team lead on 2026-10-06. Every place that shows the result also says the test is nearly circular.
+- **Factors that led to it:** Bottom K asks the right question ("are all the losing clients at the bottom?") and has a clean maximum (K of K).
+- **Trade-offs accepted:** Nearly circular: "loss-making" in the generated data is computed with the same profit rule as the engine (D-11), so a perfect profit score mainly shows the engine is wired correctly. The real finding is the revenue comparison: ranking by revenue hides most losing clients, because the planted "looks big" clients are among the largest by revenue.
+- **Expected effect:** A clearer, honest headline.
+- **Actual measured effect:** Bottom K by profit vs by revenue: seed 42: 15/15 vs 3/15; seed 1: 12/12 vs 4/12; seed 2: 15/15 vs 3/15. Bottom 10: seed 42: 10/10 vs 2/10; seed 1: 10/10 vs 4/10; seed 2: 10/10 vs 3/10.
+- **Evidence:** `python scripts/run_benchmarks.py` on 2026-10-06 (`out/benchmarks.json`, seed 42); seeds 1 and 2 from `bench2` in `scripts/run_benchmarks.py` on freshly generated data, 2026-10-06.
+- **Related decisions:** D-11, D-13
+
+## D-28: Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line
+- **ID:** D-28
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** Judges need a working link. `data/` is never committed (.gitignore), so a fresh deploy has no demo files and the demo button failed with "No demo data". A public app also invites people to upload real client data.
+- **Options considered:**
+  1. Commit the generated demo data to the repo.
+  2. Host elsewhere (a paid server or container).
+  3. Streamlit Community Cloud (free, deploys from the public repo's main branch, key kept in its secrets); the app builds the demo data itself (seed 42) the first time the demo is chosen; a line on the screen says the app is a demo and not for confidential data.
+- **Decision:** Option 3, approved by the team lead on 2026-10-06. The repo owner deploys (repo, branch main, file app.py, secret `FEATHERLESS_API_KEY`).
+- **Factors that led to it:** Seed 42 rebuilds byte-identical files, so the saved labels and explanations are reused and no LLM credits are spent on the demo. Building takes about 7 seconds once per server start. Committing ~2 MB of generated CSVs would duplicate what the generator already makes.
+- **Trade-offs accepted:** The first demo click after a restart waits about 7 to 10 seconds. A free app sleeps when unused, so it must be woken before judging. The app imports `generator/` (only to build demo files); `src/clientprofit` still never does (D-08). Uploaded request messages still go to Featherless; the screen says so. Whether Streamlit Cloud passes top-level secrets as environment variables must be checked on the first deploy.
+- **Expected effect:** The deployed demo works from a clean checkout.
+- **Actual measured effect:** On a clean folder, generating seed 42 took 7.0 s and the invoices, time entries, requests and clients files were byte-identical to the ones the saved labels were made from. `tests/test_app.py::test_missing_demo_data_is_built_on_first_start` passes. The deploy itself is not done yet.
+- **Evidence:** Check run on 2026-10-06 (scratch script comparing a fresh seed-42 build with `data/generated`); the test above.
+- **Related decisions:** D-08, D-14, D-15, D-20, D-26
 
 ---
 
