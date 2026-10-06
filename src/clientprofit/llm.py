@@ -7,6 +7,7 @@ If the variable is not set, a placeholder is sent: in the build environment a
 proxy replaces it with the real key. Teammates and the deployed app set the
 variable.
 """
+import http.client
 import json
 import os
 import time
@@ -61,7 +62,9 @@ def _request(url, key, key_env, body=None, timeout=120, retries=3):
                 raise LLMError(f"HTTP {e.code} (is {key_env} set to a valid key?): "
                                f"{e.read()[:300]!r}") from e
             raise LLMError(f"HTTP {e.code}: {e.read()[:300]!r}") from e
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as e:
+            # Dropped connections ("Remote end closed connection") are http.client
+            # errors, not URLError; treat every transport failure as retryable.
             if attempt < retries:
                 time.sleep(2 ** attempt)
                 continue

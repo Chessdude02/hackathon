@@ -1,7 +1,7 @@
 """LLM request labeller (D-14, D-15, D-17). Labels only; never does arithmetic (D-07)."""
 from concurrent.futures import ThreadPoolExecutor
 
-from clientprofit.llm import LLMError, complete
+from clientprofit.llm import complete
 from clientprofit.scope.keyword import label_one
 from clientprofit.scope.store import LabelStore, label_key
 
@@ -55,7 +55,7 @@ class LLMDetector:
                 if label:
                     return {"label": label, "source": "live"}
             return {"label": label_one(message, services), "source": "keyword_fallback_unparsed"}
-        except LLMError:
+        except Exception:  # LLMError or anything unexpected: one message must not stop a long run
             return {"label": label_one(message, services), "source": "keyword_fallback_error"}
 
     def label_requests(self, requests, services_by_client=None, progress=None):

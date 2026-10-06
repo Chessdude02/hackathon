@@ -11,6 +11,7 @@ from clientprofit import llm
 class FakeAPI(BaseHTTPRequestHandler):
     fail_first = 0
     error_body_first = 0
+    hang_up_first = 0
     status = 200
     seen = []
 
@@ -26,6 +27,11 @@ class FakeAPI(BaseHTTPRequestHandler):
                             "agent": self.headers["User-Agent"], "body": body})
         if FakeAPI.status != 200:
             return self._reply(FakeAPI.status, {"error": "no"})
+        if FakeAPI.hang_up_first > 0:
+            FakeAPI.hang_up_first -= 1
+            self.close_connection = True
+            self.connection.close()  # no response at all
+            return
         if FakeAPI.error_body_first > 0:
             FakeAPI.error_body_first -= 1
             return self._reply(200, {"error": {"message": "No successful response", "type": "server_error"}})
@@ -49,6 +55,7 @@ def fake(monkeypatch):
     monkeypatch.setenv("FEATHERLESS_API_KEY", "test-key")
     monkeypatch.setattr(llm.time, "sleep", lambda s: None)
     FakeAPI.seen, FakeAPI.fail_first, FakeAPI.status, FakeAPI.error_body_first = [], 0, 200, 0
+    FakeAPI.hang_up_first = 0
     yield FakeAPI
     server.shutdown()
 
@@ -66,6 +73,17 @@ def test_busy_server_is_retried(fake):
     fake.fail_first = 2
     assert llm.complete("hi", "m") == "extra_unpaid"
     assert len(fake.seen) == 3
+
+
+def test_dropped_connection_is_retried(fake):
+    fake.hang_up_first = 1
+    assert llm.complete("hi", "m") == "extra_unpaid"
+
+
+def test_dropped_connection_every_time_raises_llm_error(fake):
+    fake.hang_up_first = 10
+    with pytest.raises(llm.LLMError, match="Connection failed"):
+        llm.complete("hi", "m")
 
 
 def test_error_body_with_http_200_is_retried(fake):

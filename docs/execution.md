@@ -325,7 +325,7 @@ local fake server (`tests/test_llm.py`).
 - Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config. If it is not set, `PLACEHOLDER_KEY` is sent; in the build environment a proxy swaps in the real key.
 - Every request sends `User-Agent: clientprofit/0.1`. Cloudflare in front of Featherless blocks Python's default user agent with HTTP 403 (error 1010).
 - `LLM_BASE_URL` overrides the provider's address. Only the tests use it.
-- Retries: HTTP 429, 500, 502, 503, 504, connection errors, and HTTP 200 replies whose body is an error (Featherless does this when busy) are retried 3 times, waiting 1, 2 and 4 seconds.
+- Retries: HTTP 429, 500, 502, 503, 504, any dropped or failed connection (including "remote end closed connection"), and HTTP 200 replies whose body is an error (Featherless does this when busy) are retried 3 times, waiting 1, 2 and 4 seconds.
 - Failure path: an unknown provider, a refused key (HTTP 401/403, message names the variable and shows the server's reply), a failed call or an unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
 
 Smoke test: `python scripts/llm_smoke_test.py --list-models`, then
@@ -424,7 +424,7 @@ The forecast is not shown on the screen yet.
 | Function / class | File | What it does |
 |---|---|---|
 | `KeywordDetector.label_requests`, `label_one(message, services=None)` | `scope/keyword.py` | Word rules; with services, a named deliverable counts as in scope if covered, extra if not |
-| `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time, saving every 50; an unreadable reply is retried once, then the keyword label is used (`source` says which); only live labels are saved |
+| `LLMDetector(model, provider, store, workers=2, use_services=True).label_requests(requests, services_by_client, progress)` | `scope/llm_detector.py` | Reuses saved labels; labels the rest live, 2 at a time, saving every 50; an unreadable reply is retried once, then the keyword label is used; a failed call for one message also falls back to the keyword label instead of stopping the run (`source` says which); only live labels are saved |
 | `label_key(message, services, model, prompt_version)`, `LabelStore` | `scope/store.py` | Key and file for saved labels (`labels/saved_labels.json`) |
 | `get_detector(name, cfg)`, `services_by_client(tables)` | `scope/registry.py` | `keyword` or `llm`; services text per client from `clients.csv` |
 
