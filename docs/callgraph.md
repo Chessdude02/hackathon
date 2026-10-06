@@ -77,6 +77,22 @@ clientprofit.pipeline.run_pipeline -> clientprofit.validate.ERROR
 clientprofit.pipeline.run_pipeline -> clientprofit.validate.exclude_rows
 clientprofit.pipeline.run_pipeline -> clientprofit.validate.has_errors
 clientprofit.pipeline.run_pipeline -> clientprofit.validate.validate_inputs
+clientprofit.recommend -> clientprofit.recommend.MONTHS
+clientprofit.recommend._latest_trend -> clientprofit.features.build_features
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.ANNUAL
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.CUT
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.END
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.END_IF_RISE_ABOVE
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.EXTRA_SHARE_SIGNAL
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.FALLING_TREND
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.KEEP
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.NEAR_TARGET
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.RAISE
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.UNBILLED_SHARE_SIGNAL
+clientprofit.recommend.recommend_actions -> clientprofit.recommend._latest_trend
+clientprofit.recommend.recommend_actions -> clientprofit.recommend._recent
+clientprofit.recommend.recommend_actions -> clientprofit.recommend._scope_signals
+clientprofit.recommend.recommend_actions -> clientprofit.recommend.price_rise_needed
 clientprofit.schema -> clientprofit.schema.CLIENTS
 clientprofit.schema -> clientprofit.schema.INVOICES
 clientprofit.schema -> clientprofit.schema.INVOICES_REQUIRED
@@ -93,16 +109,20 @@ clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword.IN_SCOPE_WORD
 clientprofit.scope.keyword.label_one -> clientprofit.scope.keyword._named
 clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore
 clientprofit.scope.llm_detector.LLMDetector.__init__ -> clientprofit.scope.store.LabelStore.__init__
+clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.llm_detector.PROMPT_VERSION
+clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.llm_detector.PROMPT_VERSION_NO_SERVICES
+clientprofit.scope.llm_detector.LLMDetector._keys -> clientprofit.scope.store.label_key
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.llm.complete
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.keyword.label_one
+clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.MAX_FAILURES_IN_A_ROW
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.parse_label
 clientprofit.scope.llm_detector.LLMDetector._label_live -> clientprofit.scope.llm_detector.prompt_for
+clientprofit.scope.llm_detector.LLMDetector.count_new -> clientprofit.scope.llm_detector.LLMDetector.__init__
+clientprofit.scope.llm_detector.LLMDetector.count_new -> clientprofit.scope.llm_detector.LLMDetector._keys
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector.__init__
+clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector._keys
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.LLMDetector._label_live
-clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION
-clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.PROMPT_VERSION_NO_SERVICES
 clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.llm_detector.SAVE_EVERY
-clientprofit.scope.llm_detector.LLMDetector.label_requests -> clientprofit.scope.store.label_key
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.llm_detector.LABELS
 clientprofit.scope.llm_detector.parse_label -> clientprofit.scope.metrics.LABELS
 clientprofit.scope.llm_detector.prompt_for -> clientprofit.scope.llm_detector.EXAMPLES
@@ -155,4 +175,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-149 call edges.
+169 call edges.

@@ -7,6 +7,7 @@ from clientprofit.scope.store import LabelStore, label_key
 
 PROMPT_VERSION = "v1"
 SAVE_EVERY = 50
+MAX_FAILURES_IN_A_ROW = 5  # then stop calling the LLM and use keyword labels for the rest
 LABELS = ("in_scope", "extra_unpaid", "unclear")
 SYSTEM = (
     "You label messages that clients send to their marketing agency. Reply with exactly one word.\n"
@@ -64,19 +65,39 @@ class LLMDetector:
         self.model, self.provider = model, provider
         self.store = store if store is not None else LabelStore()
         self.workers, self.use_services = workers, use_services
+        self.failures_in_a_row, self.gave_up = 0, False
 
     def _label_live(self, message, services, tries=2):
-        """Ask the model; an unreadable reply gets one more try, then the keyword label."""
+        """Ask the model; an unreadable reply gets one more try, then the keyword label.
+        After MAX_FAILURES_IN_A_ROW failed calls the provider is treated as down."""
+        if self.gave_up:
+            return {"label": label_one(message, services), "source": "keyword_fallback_provider_down"}
         try:
             prompt, system = prompt_for(message, services)
             for _ in range(tries):
                 reply = complete(prompt, self.model, self.provider, system=system, max_tokens=8)
+                self.failures_in_a_row = 0
                 label = parse_label(reply)
                 if label:
                     return {"label": label, "source": "live"}
             return {"label": label_one(message, services), "source": "keyword_fallback_unparsed"}
         except Exception:  # LLMError or anything unexpected: one message must not stop a long run
+            self.failures_in_a_row += 1
+            if self.failures_in_a_row >= MAX_FAILURES_IN_A_ROW:
+                self.gave_up = True
             return {"label": label_one(message, services), "source": "keyword_fallback_error"}
+
+    def _keys(self, requests, services_by_client):
+        services_by_client = (services_by_client if self.use_services else {}) or {}
+        items = [(m, services_by_client.get(c)) for m, c in zip(requests["message"], requests["client"])]
+        keys = [label_key(m, s, self.model, PROMPT_VERSION if s else PROMPT_VERSION_NO_SERVICES)
+                for m, s in items]
+        return items, keys
+
+    def count_new(self, requests, services_by_client=None):
+        """How many distinct messages are not saved yet (each needs a live call)."""
+        _, keys = self._keys(requests, services_by_client)
+        return len({k for k in keys if not self.store.get(k)})
 
     def label_requests(self, requests, services_by_client=None, progress=None):
         """Return a list of {label, source} in the order of `requests`.
@@ -84,11 +105,7 @@ class LLMDetector:
         Saved labels are reused; the rest are labelled live in parallel and saved.
         progress(done, total) is called as live labels finish.
         """
-        services_by_client = services_by_client if self.use_services else {}
-        services_by_client = services_by_client or {}
-        items = [(m, services_by_client.get(c)) for m, c in zip(requests["message"], requests["client"])]
-        keys = [label_key(m, s, self.model, PROMPT_VERSION if s else PROMPT_VERSION_NO_SERVICES)
-                for m, s in items]
+        items, keys = self._keys(requests, services_by_client)
         out = [None] * len(items)
         todo = {}
         for i, k in enumerate(keys):

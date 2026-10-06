@@ -28,7 +28,7 @@ How the code runs. This file must match the actual code at all times.
 | Install | `pip install -r requirements.txt` |
 | Create generated data | `python scripts/generate_data.py --out data/generated --seed 42` (optional: `--truth data/truth`, `--clients 50`) |
 | Run the app | `streamlit run app.py` (verified) |
-| Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` (verified; optional `--exclude-suggested`, `--config`) |
+| Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` (verified; optional `--exclude-suggested`, `--config`; also writes `recommendations.csv`, without labels) |
 | Run all benchmarks | `python scripts/run_benchmarks.py --data data/generated --out out/benchmarks.json` (verified; also `--truth`, `--seeds`) |
 | Label requests ahead of time | `python scripts/label_requests.py --data data/generated` (verified; `--limit`, `--detector`, `--no-services`, `--store`, `--out`) |
 | Build the message bank (once) | `python scripts/build_message_bank.py` (verified) |
@@ -53,7 +53,7 @@ src/clientprofit/
     validate.py             Finds missing clients, date gaps, bad values. Exists (section 14)
     cost_engine.py          Profit per client per month. Arithmetic only. Exists (section 14)
     features.py             Client-month features for the forecast. Exists (section 16)
-    recommend.py            Rules and simulation: one action per client
+    recommend.py            Rules and simulation: one action per client. Exists (section 19)
     explain.py              Plain-language text, plus the number check
     llm.py                  The only file that calls an LLM API. Exists (section 13)
     forecast/               Exists (section 16)
@@ -94,6 +94,7 @@ tests/
     test_app.py             Exists: the Streamlit screen driven headless, demo data to ranked list
     test_scope.py           Exists: keyword rules, saved labels, LLM detector against a fake server
     test_forecast.py        Exists: features, time split, no future data in features
+    test_recommend.py       Exists: one test per recommendation rule
     fixtures/hand_calc/     Benchmark 1 inputs, hand-calculated expected answers, and the workbook used
 labelling/                  The 150-message label sheet (blank and hand-labelled), CSV and workbook (benchmark 4)
 labels/saved_labels.json    Saved request labels for the demo data (D-15)
@@ -180,7 +181,7 @@ app.main
 | `features.build_features` | pipeline result | feature table with targets | Uses only data up to each month; no request labels (section 16) |
 | `<forecaster>.fit` / `.predict` | feature table | next-quarter operating margin | Chosen by `forecast.model` in config (section 16) |
 | `<detector>.label_requests` | requests, services per client, progress | one {label, source} per request | Chosen by `scope.detector` in config (section 17) |
-| `recommend.recommend_actions` | profit, forecast, labels, config | one action per client with dollar effect | Rules, not a model |
+| `recommend.recommend_actions` | pipeline result, settings, labels (optional) | one action per ranked client with dollar effect, reason, alternative, warning | Rules, not a model (section 19) |
 | `explain.write_explanations` | computed tables | text per client | Receives numbers, never computes them |
 | `explain.check_numbers` | text, computed tables | pass or fail | A fail triggers the template text |
 | `llm.complete` | prompt | text | The single place an LLM API is called |
@@ -214,7 +215,9 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Client has hours but no invoices | validate | Keeps the client, flags it | Client shown as all cost, with a warning |
 | Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed apart as "not enough history" |
 | Forecast model fails or is not available | forecast | Uses the baseline | A note that the baseline was used |
-| LLM call fails during request labelling | scope | Uses the keyword detector | A note that the simpler detector was used |
+| LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |
+| More than 200 new messages to label | app | Does not start labelling | The expected time and a "Label them now" button |
+| No requests file | app | Skips labelling | A note that scope-creep signals are off; ranking and actions still shown |
 | Labelling still running | scope | Ranked list already shown; labels fill in as they finish | A progress indicator; scope-creep figures and "cut scope" marked as pending |
 | LLM call fails during explanation | explain | Uses fixed template text | Plain template text |
 | Number check finds a number not in the tables | explain | Discards the text, uses the template | Plain template text |
@@ -325,6 +328,7 @@ local fake server (`tests/test_llm.py`).
 - Key: read from the environment variable named in `PROVIDERS` (`FEATHERLESS_API_KEY`). Never in code or config. If it is not set, `PLACEHOLDER_KEY` is sent; in the build environment a proxy swaps in the real key.
 - Every request sends `User-Agent: clientprofit/0.1`. Cloudflare in front of Featherless blocks Python's default user agent with HTTP 403 (error 1010).
 - `LLM_BASE_URL` overrides the provider's address. Only the tests use it.
+- The detector (`scope/llm_detector.py`) stops calling the provider after `MAX_FAILURES_IN_A_ROW` (5) failed calls and uses keyword labels for the rest; `count_new(requests, services)` gives the number of messages not saved yet.
 - Retries: HTTP 429, 500, 502, 503, 504, any dropped or failed connection (including "remote end closed connection"), and HTTP 200 replies whose body is an error (Featherless does this when busy) are retried 3 times, waiting 1, 2 and 4 seconds.
 - Failure path: an unknown provider, a refused key (HTTP 401/403, message names the variable and shows the server's reply), a failed call or an unexpected reply raises `LLMError`. Callers must catch it and use their non-LLM fallback (section 8).
 
@@ -382,12 +386,17 @@ so errors must be fixed or excluded first.
 | `run_pipeline(tables, settings, exclusions=None)` | `pipeline.py` | Unify names, validate, exclude chosen rows, re-validate; stop on errors, else cost engine and ranking. Returns tables, problems, client-month, totals, ranked, unranked, as-of date, `seconds_to_ranked` |
 | `suggested_exclusions(problems)` | `pipeline.py` | Rows of every problem marked `suggest_exclude` |
 
-The screen (`app.py`): choose demo data or upload files, then (1) check or
-change the suggested mapping per file, (2) costs and rules with an editable
-staff cost table, (3) problems, each with an "exclude these rows" box (ticked
-by default only where suggested), then "Rank clients" shows (4) the ranked
-list, unranked clients apart, and a client detail with the rows behind each
-month. `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
+The screen (`app.py`): choose demo data or upload files (invoices and time
+entries required; requests, clients and staff costs optional, D-25), then
+(1) check or change the suggested mapping per file, (2) costs and rules with
+an editable staff cost table, (3) problems, each with an "exclude these rows"
+box (ticked by default only where suggested), then "Rank clients" shows
+(4) the ranked list with suggested action, effect per year and "heading to a
+loss" (D-24), a time-log warning, unranked clients apart, then "Scope-creep
+signals (beta)": labels from saved labels or live with a progress bar (asks
+first above 200 new messages), after which the table refreshes with labels,
+and (5) client detail: the suggested action, reason and alternative, monthly
+figures, the rows behind each month, and the client's labelled requests. `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
 `tests/test_app.py`).
 
 Measured on seed 42 data, 50 clients: `scripts/run_pipeline.py` loads, maps,
@@ -447,3 +456,13 @@ each with and without services, against `--hand-labels`, default
 10 header styles; circular) and 7 (load to ranked list). Benchmark 6 is
 reported as pending. With `--seeds`, benchmarks 2 and 3 are repeated on extra
 generated datasets. This is the only script that reads the truth file.
+
+## 19. Recommendations (Verified on 2026-10-06)
+
+| Function | File | What it does |
+|---|---|---|
+| `recommend_actions(result, settings, labels=None)` | `recommend.py` | One row per ranked client: `action`, `dollar_effect_per_year`, `why`, `alternative` (always set for "end the contract"), `heading_to_loss`, and the figures behind them (3-month revenue, cost, profit, margin, price rise needed, unbilled share and cost, extra-request share, margin trend) |
+| `price_rise_needed(revenue, cost, target)` | `recommend.py` | Rise so that (new revenue − cost) / new revenue = target |
+
+Rules and thresholds: D-24 and the constants at the top of `recommend.py`.
+The screen and `scripts/run_pipeline.py` both use it.

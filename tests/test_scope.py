@@ -142,3 +142,20 @@ def test_scores_precision_recall_f1():
     e = s["per_label"]["extra_unpaid"]
     assert (e["precision"], e["recall"], e["f1"], e["support"]) == (0.5, 0.5, 0.5, 2)
     assert s["accuracy"] == 0.5 and s["headline"]["label"] == "extra_unpaid"
+
+
+def test_provider_down_stops_calling_after_five_failures(fake, tmp_path):
+    fake.reply = "500"
+    many = pd.DataFrame({"client": ["A"] * 12, "message": [f"m{i}" for i in range(12)]})
+    d = LLMDetector("m", store=LabelStore(tmp_path / "s.json"), workers=1)
+    out = d.label_requests(many)
+    assert d.gave_up and len(fake.calls) == 5 * 4  # 5 messages, each tried 4 times by the wrapper
+    assert sum(o["source"] == "keyword_fallback_provider_down" for o in out) == 7
+
+
+def test_count_new_messages(fake, tmp_path):
+    store = LabelStore(tmp_path / "s.json")
+    d = LLMDetector("m", store=store)
+    assert d.count_new(REQ) == 2
+    d.label_requests(REQ)
+    assert d.count_new(REQ) == 0

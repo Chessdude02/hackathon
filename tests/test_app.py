@@ -31,3 +31,17 @@ def test_demo_data_to_ranked_list(demo_dir, monkeypatch):
     ranked = [d.value for d in at.dataframe if "Rank" in d.value.columns]
     assert len(ranked) == 1 and len(ranked[0]) >= 40
     assert list(ranked[0].columns)[:2] == ["Rank", "Client"]
+
+
+def test_ranked_list_has_actions_and_asks_before_long_labelling(demo_dir, monkeypatch):
+    monkeypatch.setenv("CLIENTPROFIT_DEMO_DIR", str(demo_dir))
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.run()
+    at.radio[0].set_value("Use demo data (generated)").run()
+    [b for b in at.button if b.label == "Rank clients"][0].click().run()
+    assert not at.exception
+    ranked = [d.value for d in at.dataframe if "Rank" in d.value.columns][0]
+    assert {"Suggested action", "Effect per year", "Heading to a loss"} <= set(ranked.columns)
+    # Fresh data: no saved labels, so the screen asks instead of making ~2,000 live calls (D-15)
+    assert any(b.label == "Label them now" for b in at.button)
+    assert any("Suggested action" in m.value for m in at.markdown)

@@ -7,6 +7,8 @@ Usage:
 Uses the suggested column mapping as is. Staff costs come from
 <data>/staff_costs.csv if present, else from config.yaml. With
 --exclude-suggested, rows the validation step suggests excluding are excluded.
+Writes problems, client-month, ranked, unranked and recommendations CSVs to --out.
+Recommendations here do not use request labels.
 """
 import argparse
 import sys
@@ -16,7 +18,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from clientprofit import config, pipeline, validate  # noqa: E402
+from clientprofit import config, pipeline, recommend, validate  # noqa: E402
 
 
 def main():
@@ -49,10 +51,14 @@ def main():
     result["client_month"].to_csv(out / "client_month.csv", index=False)
     result["ranked"].to_csv(out / "ranked.csv", index=False)
     result["unranked"].to_csv(out / "unranked.csv", index=False)
+    recs = recommend.recommend_actions(result, settings)  # without request labels (they are optional)
+    recs.to_csv(out / "recommendations.csv", index=False)
     print(f"As of {result['as_of'].date()}: {len(result['ranked'])} ranked, "
           f"{len(result['unranked'])} not enough history, {len(result['problems'])} problems reported, "
           f"rows excluded: {result['excluded'] or 'none'}")
     print(f"Upload to ranked list: {total:.2f} s (pipeline only {result['seconds_to_ranked']:.2f} s)")
+    print("Suggested actions:", recs["action"].value_counts().to_dict(),
+          f"| heading to a loss: {int(recs['heading_to_loss'].sum())}")
     print(result["ranked"][["rank", "client", "profit_last_12m", "revenue_last_12m", "loss_making"]]
           .head(10).to_string(index=False))
 

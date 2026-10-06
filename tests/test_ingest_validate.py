@@ -150,3 +150,19 @@ def test_planted_problems_are_found(tmp_path):
             names |= set(df.loc[df["client_original"].isin([v.client, v.variant.strip()]), "client"])
         assert len(names) == 1, (v.client, v.variant, names)
     assert ("hours_but_no_invoices", "time_entries") in found
+
+
+def test_pipeline_runs_without_requests(tmp_path):
+    """Requests are optional: invoices and time entries alone give a ranked list."""
+    from clientprofit import pipeline
+    generate(7, 45, tmp_path / "d", tmp_path / "t")
+    paths = pipeline.find_files(tmp_path / "d")
+    paths.pop("requests")
+    paths.pop("clients")
+    tables = pipeline.apply_mappings(pipeline.load_files(paths))
+    costs = pd.read_csv(tmp_path / "d" / "staff_costs.csv")
+    settings = {"staff_costs": dict(zip(costs.staff, costs.hourly_cost)), "overhead_multiplier": 1.3,
+                "late_payment_annual_rate": 0.08, "payment_terms_days": 30, "unpaid_warning_days": 90,
+                "min_months_for_ranking": 3}
+    result = pipeline.run_pipeline(tables, settings)
+    assert result["stopped"] is None and len(result["ranked"]) > 30

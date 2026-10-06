@@ -65,10 +65,12 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **Cost engine** | Works out, for every client and month: revenue, labour cost, cost of late payment, and profit. Plain arithmetic, no AI. Every figure lists the input rows behind it. | Built, matches a hand calculation exactly |
 | **Ranking** | Ranks clients by profit over the last 12 months. Clients with under 3 months of data are listed apart as "not enough history" instead of being ranked. | Built |
 | **Worst-case profit** | For each client, also shows profit if invoices more than 90 days overdue are never paid. | Built |
-| **Request labeller** | Labels each client message as routine work, extra unpaid work, or unclear, using an AI model (Featherless, Qwen 2.5 14B) and the client's list of services. Saves every label so the same message is never sent twice. | Built, not yet shown on the screen |
+| **Request labeller** | Labels each client message as routine work, extra unpaid work, or unclear, using an AI model (Featherless, Qwen 2.5 14B) and the client's list of services. Saves every label so the same message is never sent twice. Shown as a suggestion to review. | Built |
 | **Keyword baseline** | A simple word-rule labeller used as the comparison and as the fallback if the AI fails. | Built |
 | **Forecast** | Predicts next quarter's margin per client. A LightGBM model was tested against "next quarter equals last quarter" and lost, so the simple rule ships. | Built, not yet shown on the screen |
-| **Screen** | Streamlit app: data source, column check, settings, problems, ranked list, client detail. | Built (rough) |
+| **Recommendations** | One action per client (keep, raise price, cut scope, end the contract) with its dollar effect a year, the reason, and for "end" always an alternative. Rules on the last 3 months; "end" only as a last resort. | Built |
+| **Loss warnings** | Flags clients profitable over the year but heading toward a loss now. | Built |
+| **Screen** | Streamlit app: data source, column check, settings, problems, ranked list with actions and warnings, scope-creep signals with progress, client detail. Requests and services are optional. | Built (rough) |
 | **Data generator** | Creates a realistic fake agency (50 clients, 24 months) with planted patterns, because no real data was available. | Built |
 | **Benchmarks** | One script runs the benchmarks and writes the numbers to a file. | Built (6 of 7) |
 | **Tests** | 100 automated tests, including one for every cost calculation. | Built, all passing |
@@ -77,9 +79,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 
 | Part | What it will do |
 |---|---|
-| **Recommendations** | One action per client with its dollar effect. Example: "Raise the price by 14% ($1,260 a month) to reach your 30% target margin." Rules, not a model. "End the contract" is never shown without its numbers and one alternative. |
-| **Loss warnings** | Flag clients whose margin trend and forecast point to a loss next quarter. |
-| **Labels and forecast on the screen** | Shown after the ranked list, filling in with a progress bar. The ranked list never waits for them. |
+| **Forecast on the screen** | Trend lines per client next to the action. |
 | **Explanations** | Two or three plain sentences per client, written by the AI **using only numbers our code computed**, with an automatic check that rejects any text containing a number not in our tables. |
 | **Services table on the settings screen** | Type each client's services in the app instead of uploading a file. |
 | **Deployment** | A public link to the app. |

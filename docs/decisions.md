@@ -35,6 +35,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
 | D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Assumed | Yes (benchmark 4) |
 | D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Assumed | Yes (benchmark 4) |
+| D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Assumed | Yes (seed 42) |
+| D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Assumed | No |
 
 ---
 
@@ -479,6 +481,45 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** On generated data, same as D-22: accuracy 0.73; precision / recall / F1 for "extra unpaid" 0.88 / 0.69 / 0.77.
 - **Evidence:** `out/benchmarks.json` from `python scripts/run_benchmarks.py`, 2026-10-06.
 - **Related decisions:** D-14, D-17, D-22
+
+## D-24: Recommendation rules: one action per client, last 3 months, end only as last resort
+- **ID:** D-24
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** The product promises one action per ranked client (keep, raise price, cut scope, end the contract) with its dollar effect, computed by rules, never ending a contract without numbers and one alternative.
+- **Options considered:**
+  1. Rules on the last 12 months.
+  2. Rules on the last 3 months, scaled to a year, with 12-month figures shown beside them.
+- **Decision:** Option 2. In order, for each ranked client (`src/clientprofit/recommend.py`):
+  - No invoices or hours in the last 3 months: keep as is.
+  - 3-month margin within 2 points of the target or above: keep as is.
+  - Hours but no revenue in the last 3 months: cut scope ("bill this work or stop it").
+  - Scope signals (20% or more of hours unbilled, or 30% or more of recent requests labelled extra unpaid with at least 3 of them) and cutting the unbilled work reaches the target, or turns a loss into a profit: cut scope; effect = unbilled labour cost × 4.
+  - Losing over 12 months and in the last 3 months, cutting unbilled work would not break even, and the price rise needed is above 50%: end the contract; effect = loss stopped per year; the alternative (price rise and cut-scope saving) is always shown.
+  - Otherwise: raise price by the amount that reaches the target: new revenue = cost ÷ (1 − target margin); effect = (new revenue − revenue) × 4.
+  - Warning "heading to a loss": profitable over 12 months, but the last 3 months' margin is below 0, or below 5% and down 10 points or more on the quarter before.
+- **Factors that led to it:** The last quarter shows where a client is now, so a client that recently turned bad is caught. A first version ended 14 of 48 clients, including ones that cutting unbilled work would make profitable; the "end" rule was tightened to a true last resort.
+- **Trade-offs accepted:** Every dollar effect assumes the same workload and that the client accepts the change; the screen says so. A quarter is noisy (hourly clients are invoiced the month after the work). The thresholds are judgement, not fitted to data.
+- **Expected effect:** Few "end" suggestions, each with numbers and an alternative; healthy clients mostly "keep".
+- **Actual measured effect:** Seed 42, 48 ranked clients, with request labels: 19 keep, 15 cut scope, 8 raise price, 6 end the contract, 4 heading to a loss. All 6 "end" clients were planted as scope creep or decline and lose money; 17 of 23 planted healthy clients get "keep"; all 4 warnings are clients planted with late scope creep. Without labels, one client moves from cut scope to raise price (14 / 9). This is generated data; it shows the rules behave as designed, not that they are right for real agencies.
+- **Evidence:** Runs on `data/generated` (seed 42) on 2026-10-06; `tests/test_recommend.py` (one test per rule).
+- **Related decisions:** D-07, D-11, D-21, D-23
+
+## D-25: Requests optional; time-log warning; stop calling a down provider
+- **ID:** D-25
+- **Date:** 2026-10-06
+- **Status:** Assumed
+- **Context:** Most agencies keep client requests in email, chat and calls, not one file. Profit is overstated when staff under-log hours. If the AI provider is down, each failed call costs about 7 seconds of retries, which for thousands of messages would take hours.
+- **Options considered:**
+  1. Keep requests required; no warning; retry every message.
+  2. Make requests (and services) optional; show a time-log warning by the ranked list; after 5 failed calls in a row, stop calling the provider and use keyword labels for the rest.
+- **Decision:** Option 2, approved by the team lead on 2026-10-06. Also: when more than 200 messages are new, the screen shows the expected labelling time and asks before starting (D-15).
+- **Factors that led to it:** The ranking and the recommendations work without requests; scope-creep signals are extra. The time-log risk is bigger than any model's accuracy and the owner should see it.
+- **Trade-offs accepted:** Without requests, cut-scope suggestions rest on unbilled hours only. Keyword labels used after a provider failure are marked as such.
+- **Expected effect:** Agencies without a requests export can still use the tool; a provider outage cannot stall the screen.
+- **Actual measured effect:** Not measured beyond tests (`tests/test_ingest_validate.py::test_pipeline_runs_without_requests`, `tests/test_scope.py::test_provider_down_stops_calling_after_five_failures`).
+- **Evidence:** Tests above, 2026-10-06.
+- **Related decisions:** D-15, D-23, D-24
 
 ---
 
