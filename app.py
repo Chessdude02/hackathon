@@ -25,6 +25,9 @@ DEMO_SEED = 42           # the saved labels and explanations were made from seed
 DEMO_CLIENTS = 50
 IGNORE = "(ignore)"
 REQUIRED_FILES = ("invoices", "time_entries")  # requests and clients are optional
+# Raise when the shape of a pipeline result changes. A browser tab kept open across an
+# update still holds a result made by the old code; it is dropped and ranked again.
+RESULT_VERSION = 2  # 2: direct costs and reasons for not ranking (D-30, D-31)
 
 
 def money(v):
@@ -356,6 +359,10 @@ def main():
         st.session_state.result = pipeline.run_pipeline(tables, settings, exclusions)
         st.session_state.result["seconds_to_ranked"] = time.perf_counter() - start
         st.session_state.labels, st.session_state.label_go = None, False
+        st.session_state.result_version = RESULT_VERSION
+    if st.session_state.get("result") is not None and st.session_state.get("result_version") != RESULT_VERSION:
+        st.session_state.result = None
+        st.info("The app was updated since you last ranked. Click \"Rank clients\" again.")
     result = st.session_state.get("result")
     if result is None:
         return

@@ -223,6 +223,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed under "Not ranked" with the reason |
 | Client has no invoices or hours in the last 12 months | cost_engine | Not ranked (D-30) | Client listed under "Not ranked" with the reason and its profit over all the data |
 | Payment dated after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
+| Browser tab kept open across an app update | app | A result made by older code (`result_version` differs from `RESULT_VERSION`) is dropped | A note to click "Rank clients" again |
 | No direct-cost column | ingest, cost_engine | Direct cost counts as 0 (D-31) | No direct-cost columns on the screen |
 | Forecast model fails or is not available | forecast | Uses the baseline | A note that the baseline was used |
 | LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |

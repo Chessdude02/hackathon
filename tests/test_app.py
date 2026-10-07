@@ -62,3 +62,18 @@ def test_missing_demo_data_is_built_on_first_start(tmp_path, monkeypatch):
     assert not at.exception
     assert (folder / "invoices.csv").exists() and (folder / "requests.csv").exists()
     assert "1. Check the column mapping" in [h.value for h in at.header]
+
+
+def test_result_from_older_app_version_is_dropped(demo_dir, monkeypatch):
+    """A tab kept open across an update holds a result made by the old code; it must not crash."""
+    monkeypatch.setenv("CLIENTPROFIT_DEMO_DIR", str(demo_dir))
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.run()
+    at.radio[0].set_value("Use demo data (generated)").run()
+    [b for b in at.button if b.label == "Rank clients"][0].click().run()
+    old = at.session_state["result"]
+    old["client_month"] = old["client_month"].drop(columns=["direct_cost"])  # shape before D-31
+    at.session_state["result_version"] = 1
+    at.run()
+    assert not at.exception
+    assert any("updated since you last ranked" in i.value for i in at.info)
