@@ -113,6 +113,6 @@ python, pandas, numpy, streamlit, lightgbm, featherless-ai, qwen, pytest
 
 ## Links
 
-- Demo: [Streamlit link]
+- Demo: https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/
 - Repo: https://github.com/Chessdude02/hackathon
 - Video: [link]

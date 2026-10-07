@@ -15,7 +15,7 @@ The owner makes every decision. The tool never acts on its own.
 
 Built for ForgeHacks Online 2026, Business track.
 
-**Live demo:** _link added after deployment_ (Streamlit Community Cloud).
+**Live demo:** https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/ (Streamlit Community Cloud; it may take a minute to wake up).
 Demo only: please don't upload confidential client data.
 
 ## Headline results
