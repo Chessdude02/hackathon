@@ -14,36 +14,36 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 |---|---|---|---|---|
 | D-01 | 2026-10-04 | Enter the Business track | Confirmed | No |
 | D-02 | 2026-10-04 | Build a client profit finder | Confirmed | No |
-| D-03 | 2026-10-04 | Target user is a small agency (5-30 staff) | Assumed | No |
-| D-04 | 2026-10-04 | One Python app with Streamlit | Assumed | No |
-| D-05 | 2026-10-04 | Profit calculation uses no machine learning | Assumed | No |
-| D-06 | 2026-10-04 | Forecast with LightGBM, baseline and drop gate | Assumed | Yes (gate failed: baseline ships) |
-| D-07 | 2026-10-04 | The LLM never does arithmetic | Assumed | No |
-| D-08 | 2026-10-04 | Generated data, kept separate from model code | Assumed | No |
-| D-09 | 2026-10-04 | Fixed out-of-scope list | Assumed | No |
-| D-10 | 2026-10-04 | Call graph generated with pyan3 as a text edge list | Assumed | Yes (toy code only) |
-| D-11 | 2026-10-04 | Fixed input schema and profit definitions | Assumed | No |
+| D-03 | 2026-10-04 | Target user is a small agency (5-30 staff) | Confirmed | No |
+| D-04 | 2026-10-04 | One Python app with Streamlit | Confirmed | No |
+| D-05 | 2026-10-04 | Profit calculation uses no machine learning | Confirmed | No |
+| D-06 | 2026-10-04 | Forecast with LightGBM, baseline and drop gate | Confirmed | Yes (gate failed: baseline ships) |
+| D-07 | 2026-10-04 | The LLM never does arithmetic | Confirmed | No |
+| D-08 | 2026-10-04 | Generated data, kept separate from model code | Confirmed | No |
+| D-09 | 2026-10-04 | Fixed out-of-scope list | Confirmed | No |
+| D-10 | 2026-10-04 | Call graph generated with pyan3 as a text edge list | Confirmed | Yes (toy code only) |
+| D-11 | 2026-10-04 | Fixed input schema and profit definitions | Confirmed | No |
 | D-12 | 2026-10-04 | Data generator design | Superseded by D-13 | Yes (seed 42 run) |
-| D-13 | 2026-10-04 | Make generated trends less clean | Assumed | Yes (seed 42 run) |
-| D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Assumed | Yes (20-message smoke test) |
-| D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Assumed | No |
-| D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Assumed | No |
-| D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Assumed | No |
+| D-13 | 2026-10-04 | Make generated trends less clean | Confirmed | Yes (seed 42 run) |
+| D-14 | 2026-10-05 | LLM provider: Featherless AI behind one wrapper | Confirmed | Yes (20-message smoke test) |
+| D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Confirmed | No |
+| D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Confirmed | No |
+| D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Confirmed | No |
 | D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Superseded by D-29 | Yes (benchmark 1) |
-| D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
-| D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
-| D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
-| D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Assumed | Yes (benchmark 4) |
-| D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Assumed | Yes (benchmark 4) |
-| D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Assumed | Yes (seed 42) |
-| D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Assumed | No |
-| D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Assumed | Yes (benchmark 6) |
-| D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Assumed | Yes (benchmark 2, 3 seeds) |
-| D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Assumed | Yes (live app, 2026-10-07) |
-| D-29 | 2026-10-07 | As-of date from invoice, work and request dates only; odd payment dates flagged | Assumed | Yes (Pemberton check, benchmark 1) |
-| D-30 | 2026-10-07 | Clients with no invoices or hours in the last 12 months are not ranked | Assumed | Yes (Pemberton check) |
-| D-31 | 2026-10-07 | Optional direct-cost column on invoices | Assumed | Yes (Pemberton check) |
-| D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Assumed | Yes (Pemberton check) |
+| D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Confirmed | Yes (seed 42, circular) |
+| D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Confirmed | No |
+| D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Confirmed | Yes (benchmark 3) |
+| D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Confirmed | Yes (benchmark 4) |
+| D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Confirmed | Yes (benchmark 4) |
+| D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Confirmed | Yes (seed 42) |
+| D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Confirmed | No |
+| D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Confirmed | Yes (benchmark 6) |
+| D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Confirmed | Yes (benchmark 2, 3 seeds) |
+| D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Confirmed | Yes (live app, 2026-10-07) |
+| D-29 | 2026-10-07 | As-of date from invoice, work and request dates only; odd payment dates flagged | Confirmed | Yes (Pemberton check, benchmark 1) |
+| D-30 | 2026-10-07 | Clients with no invoices or hours in the last 12 months are not ranked | Confirmed | Yes (Pemberton check) |
+| D-31 | 2026-10-07 | Optional direct-cost column on invoices | Confirmed | Yes (Pemberton check) |
+| D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Confirmed | Yes (Pemberton check) |
 
 ---
 
@@ -85,7 +85,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-03: Target user is a small agency (5-30 staff)
 - **ID:** D-03
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The profit calculation needs hours spent per client. The user type decides which data exists.
 - **Options considered:**
   1. Marketing or design agency.
@@ -102,7 +102,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-04: One Python app with Streamlit
 - **ID:** D-04
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The build window is seven days. Team size and skills are not yet known.
 - **Options considered:**
   1. Single Python app with Streamlit.
@@ -118,7 +118,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-05: Profit calculation uses no machine learning
 - **ID:** D-05
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** True profit per client is revenue minus the cost of hours and late payment. This is the core of the product.
 - **Options considered:**
   1. Plain arithmetic in pandas or DuckDB, with a test for every calculation.
@@ -134,7 +134,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-06: Forecast with LightGBM, baseline and drop gate
 - **ID:** D-06
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The product should warn about clients heading toward a loss. Data will be about 50 clients over 24 months, which is very little.
 - **Options considered:**
   1. LightGBM on client-month rows, compared to "next quarter equals last quarter".
@@ -151,7 +151,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-07: The LLM never does arithmetic
 - **ID:** D-07
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** An LLM is useful for messy column names, labelling client requests and writing explanations, but can invent numbers.
 - **Options considered:**
   1. LLM limited to column mapping, request labelling and explanations. All numbers come from code. An automatic check confirms every number in the text exists in the computed table.
@@ -167,7 +167,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-08: Generated data, kept separate from model code
 - **ID:** D-08
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** No real client data is available.
 - **Options considered:**
   1. A generator with planted patterns, in a separate module whose parameters the model code cannot import. The README states which scores come from generated data.
@@ -184,7 +184,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-09: Fixed out-of-scope list
 - **ID:** D-09
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** A one-week build invites adding too much.
 - **Options considered:**
   1. Exclude logins, live links to accounting or time-tracking tools, multiple companies, mobile layout, chat interface and automatic emails.
@@ -200,7 +200,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-10: Call graph generated with pyan3 as a text edge list
 - **ID:** D-10
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** `docs/execution.md` must include an auto-generated function call graph that always matches the code.
 - **Options considered:**
   1. pyan3, with a script that writes a sorted "caller -> callee" list to `docs/callgraph.md`.
@@ -217,7 +217,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-11: Fixed input schema and profit definitions
 - **ID:** D-11
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Column names in uploaded files will be messy. Every later stage needs one fixed set of columns, and the cost engine needs exact definitions so benchmark 1 can be checked by hand.
 - **Options considered:**
   1. A small fixed schema of three tables, with two tracking columns (`_src_file`, `_src_row`) on every row, and written definitions for every figure.
@@ -275,7 +275,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-13: Make generated trends less clean
 - **ID:** D-13
 - **Date:** 2026-10-04
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Under D-12, every client kept one type for all 24 months, every trend followed one smooth formula, no client left, and nothing affected all clients at once. Month-to-month noise was already large, but the shapes were too easy for a model to learn. Two items promised in D-12's design, one-off projects and staff holidays, had not been built.
 - **Options considered:**
   1. Keep D-12 as it is.
@@ -300,7 +300,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-14: LLM provider: Featherless AI behind one wrapper
 - **ID:** D-14
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Column mapping, request labelling, the message bank and explanations need an LLM (D-07). The team has $25 of Featherless AI sponsor credit.
 - **Options considered:**
   1. Featherless AI (open-weight models, sponsor credit).
@@ -316,7 +316,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-15: Label requests once, save labels, ranked list never waits for labels
 - **ID:** D-15
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** D-14 measured 1.24 s per labelling call. Labelling all 3,029 generated requests one at a time would take about 62 minutes, far over the 60-second target in benchmark 7.
 - **Options considered:**
   1. Label each message once, save the label, and reuse it. Only new messages are labelled live.
@@ -339,7 +339,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-16: Worst-case profit removes an overdue invoice completely
 - **ID:** D-16
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** D-11 defines `profit_if_overdue_unpaid` as profit with each overdue-unpaid invoice "removed completely, both its revenue and its late cost", and notes the late-cost part was the assistant's proposal, not yet agreed. The hand-calculation README worded it as "take away its revenue and its late cost". The hand calculation for Delta Foods read that as subtracting both from profit (1,372.80), not as removing both (1,500.00).
 - **Options considered:**
   1. Subtract both: profit − amount − late cost. Delta Foods: 4,436.40 − 3,000 − 63.60 = 1,372.80.
@@ -355,7 +355,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-17: Optional "services covered" per client, given to the request labeller
 - **ID:** D-17
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The request labeller decides "in scope" from wording alone, without knowing what each client pays for. The same message can be routine for one client and extra work for another.
 - **Options considered:**
   1. Keep labelling from wording alone.
@@ -393,7 +393,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-19: Rule-based column mapping, name cleaning and validation rules
 - **ID:** D-19
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Uploaded files have messy headers, client spellings that differ between files, and errors. D-11 asked for confirmed mapping, simple name cleaning and a report that never drops rows silently.
 - **Options considered:**
   1. Rule-based: a hand-written list of header words per schema column, exact match after cleaning; the LLM mapping (planned) is added on top, and this list stays as the fallback and the benchmark 5 baseline.
@@ -415,7 +415,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-20: PyYAML for config and a demo-folder setting for tests
 - **ID:** D-20
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Both were added on 2026-10-05 before approval and flagged afterwards. The team rule is to ask before adding a library or feature.
 - **Options considered:**
   1. Keep `pyyaml` (reads `config.yaml`, the format in the team's planned design) and the `CLIENTPROFIT_DEMO_DIR` environment variable (lets `tests/test_app.py` point the screen at its own generated data).
@@ -431,7 +431,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-21: Forecast set-up: operating margin, time split, baseline ships
 - **ID:** D-21
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** D-06 needs a fair test of LightGBM against "next quarter equals last quarter", with no future data in the features.
 - **Options considered:**
   1. Forecast margin including late-payment cost.
@@ -452,7 +452,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-22: Benchmark 4 result; prompt for clients without services fixed
 - **ID:** D-22
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** A teammate labelled the 150-message sheet by hand. Benchmark 4 compares the LLM detector with the keyword baseline against those labels, each with and without the client's services (D-17). The first run showed the LLM without services answering "unclear" to almost everything (accuracy 0.14): the prompt said "Services covered: not known", which the model read as "cannot tell". In the app, every client without a `clients.csv` entry would have been labelled "unclear".
 - **Options considered:**
   1. Report the broken result as it stood.
@@ -475,7 +475,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-23: Ship the LLM labeller with services, as a reviewed suggestion
 - **ID:** D-23
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Benchmark 4 (D-22) found the LLM labeller with services (accuracy 0.73) within noise of the keyword baseline with services (0.76) and the LLM without services (0.75). A detector has to be chosen for `scope.detector`.
 - **Options considered:**
   1. Keyword rules with services: best measured score, instant and free, but its lead is partly circular (its word list overlaps the generator's items).
@@ -492,7 +492,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-24: Recommendation rules: one action per client, last 3 months, end only as last resort
 - **ID:** D-24
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The product promises one action per ranked client (keep, raise price, cut scope, end the contract) with its dollar effect, computed by rules, never ending a contract without numbers and one alternative.
 - **Options considered:**
   1. Rules on the last 12 months.
@@ -515,7 +515,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-25: Requests optional; time-log warning; stop calling a down provider
 - **ID:** D-25
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Most agencies keep client requests in email, chat and calls, not one file. Profit is overstated when staff under-log hours. If the AI provider is down, each failed call costs about 7 seconds of retries, which for thousands of messages would take hours.
 - **Options considered:**
   1. Keep requests required; no warning; retry every message.
@@ -531,7 +531,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-26: Explanations: facts from code, LLM writes words, number check with template fallback
 - **ID:** D-26
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The brief asks for 2 to 3 plain sentences per client written by an LLM using only numbers from the cost engine, forecast and recommendations, with an automatic check that every number in the text exists in the computed figures (benchmark 6, target zero).
 - **Options considered:**
   1. Give the LLM the raw tables and let it pick numbers.
@@ -547,7 +547,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-27: Benchmark 2 headline is bottom K, bottom 10 second
 - **ID:** D-27
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Benchmark 2 was written as "planted loss-making clients found in the bottom 10". Each dataset has 12 to 15 planted loss-makers (K), so a bottom 10 can never hold all of them and its share (at most 10 of K) understates the result.
 - **Options considered:**
   1. Keep bottom 10 as the headline.
@@ -563,7 +563,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-28: Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line
 - **ID:** D-28
 - **Date:** 2026-10-06
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Judges need a working link. `data/` is never committed (.gitignore), so a fresh deploy has no demo files and the demo button failed with "No demo data". A public app also invites people to upload real client data.
 - **Options considered:**
   1. Commit the generated demo data to the repo.
@@ -580,7 +580,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-29: As-of date from invoice, work and request dates only; odd payment dates flagged
 - **ID:** D-29
 - **Date:** 2026-10-07
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** D-18 counted payment dates as activity. In the Pemberton dataset (D-32) the latest payment, 15 Oct 2026, was a month after the last invoice or work (14 Sep 2026) and after today. It became the as-of date and moved the 12-month window forward, cutting off real work.
 - **Options considered:**
   1. Keep D-18: payment dates set the as-of date.
@@ -596,7 +596,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-30: Clients with no invoices or hours in the last 12 months are not ranked
 - **ID:** D-30
 - **Date:** 2026-10-07
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** A client with 3 or more months of history but nothing in the last 12 months was ranked with $0 revenue and $0 profit, which says nothing about it.
 - **Options considered:**
   1. Keep ranking them at $0.
@@ -612,7 +612,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-31: Optional direct-cost column on invoices
 - **ID:** D-31
 - **Date:** 2026-10-07
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** Profit counted only staff time and late payment. In the Pemberton data, parts cost $1.9M of $3.9M revenue; without it every customer looked far more profitable than it was. Agencies have the same kind of cost: freelancers, ad spend, software or printing passed on to a client.
 - **Options considered:**
   1. Leave it out and state the limit.
@@ -629,7 +629,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-32: Outside synthetic dataset (Pemberton) used as a test only
 - **ID:** D-32
 - **Date:** 2026-10-07
-- **Status:** Assumed
+- **Status:** Confirmed
 - **Context:** The team lead supplied `pemberton_mechanical_data.zip`: 18 months of a synthetic HVAC and plumbing contractor (407 customers, 14 technicians) built for a university course (its README: "Synthetic data built for BANA785 at RIT"). It is the first data not made by us.
 - **Options considered:**
   1. Use it in the demo and the pitch as evidence of real-world accuracy.
