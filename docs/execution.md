@@ -399,12 +399,14 @@ entries required; requests, clients and staff costs optional, D-25), then
 (1) check or change the suggested mapping per file, (2) costs and rules with
 an editable staff cost table, (3) problems, each with an "exclude these rows"
 box (ticked by default only where suggested), then "Rank clients" shows
-(4) the ranked list with suggested action, effect per year and "heading to a
-loss" (D-24), a time-log warning, unranked clients apart, then "Scope-creep
+(4) the ranked list with profit over 12 and the last 3 months, suggested
+action, effect per year and "heading to a loss" (D-24), a time-log warning, unranked clients apart, then "Scope-creep
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, monthly
-figures, the rows behind each month, the client's labelled requests, and an
+figures, the rows behind each month (shown by `readable()`: plain column
+names, dates without times, money rounded to cents, labour cost including
+overhead), the client's labelled requests, and an
 explanation written on opening (D-26; a note says when standard wording was used instead). `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
 `tests/test_app.py`). A line at the top says the app is a demo and not for
 confidential data (D-28). If the demo folder has no `invoices.csv` (a fresh

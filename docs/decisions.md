@@ -39,7 +39,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Assumed | No |
 | D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Assumed | Yes (benchmark 6) |
 | D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Assumed | Yes (benchmark 2, 3 seeds) |
-| D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Assumed | Partly (tests; deploy not yet done) |
+| D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Assumed | Yes (live app, 2026-10-07) |
 
 ---
 
@@ -569,8 +569,8 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Factors that led to it:** Seed 42 rebuilds byte-identical files, so the saved labels and explanations are reused and no LLM credits are spent on the demo. Building takes about 7 seconds once per server start. Committing ~2 MB of generated CSVs would duplicate what the generator already makes.
 - **Trade-offs accepted:** The first demo click after a restart waits about 7 to 10 seconds. A free app sleeps when unused, so it must be woken before judging. The app imports `generator/` (only to build demo files); `src/clientprofit` still never does (D-08). Uploaded request messages still go to Featherless; the screen says so. Whether Streamlit Cloud passes top-level secrets as environment variables must be checked on the first deploy.
 - **Expected effect:** The deployed demo works from a clean checkout.
-- **Actual measured effect:** On a clean folder, generating seed 42 took 7.0 s and the invoices, time entries, requests and clients files were byte-identical to the ones the saved labels were made from. `tests/test_app.py::test_missing_demo_data_is_built_on_first_start` passes. The deploy itself is not done yet.
-- **Evidence:** Check run on 2026-10-06 (scratch script comparing a fresh seed-42 build with `data/generated`); the test above.
+- **Actual measured effect:** On a clean folder, generating seed 42 took 7.0 s and the invoices, time entries, requests and clients files were byte-identical to the ones the saved labels were made from. `tests/test_app.py::test_missing_demo_data_is_built_on_first_start` passes. Deployed on 2026-10-07 at https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/ ; the team lead's check on the live app: 48 clients ranked in 1.34 s, all 2,601 request labels reused from the saved file (no "Label them now" button), explanations shown from the saved file.
+- **Evidence:** Check run on 2026-10-06 (scratch script comparing a fresh seed-42 build with `data/generated`); the test above; team lead's screenshots of the live app, 2026-10-07.
 - **Related decisions:** D-08, D-14, D-15, D-20, D-26
 
 ---

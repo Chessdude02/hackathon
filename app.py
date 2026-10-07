@@ -130,6 +130,7 @@ def ranked_table(result, recs):
         "Profit (12 mo)": r["profit_last_12m"].map(money),
         "Revenue (12 mo)": r["revenue_last_12m"].map(money),
         "Margin": r["margin_last_12m"].map(lambda v: "" if pd.isna(v) else f"{v:.0%}"),
+        "Profit (last 3 mo)": r["profit_3m"].map(money),
         "Losing money": r["loss_making"].map({True: "Yes", False: ""}),
         "Heading to a loss": r["heading_to_loss"].map({True: "⚠️ Yes", False: ""}),
         "Suggested action": [f"{ACTION_ICON.get(a, '')} {a}" for a in r["action"]],
@@ -234,6 +235,23 @@ def explanation_box(rec, totals, cfg):
         st.caption("Written by AI from the figures above; every number in it was checked against them.")
 
 
+MONEY_COLUMNS = {"Amount", "Late payment cost", "Hourly cost", "Labour cost (with overhead)"}
+LABEL_WORDS = {"in_scope": "routine", "extra_unpaid": "extra unpaid work", "unclear": "unclear"}
+
+
+def readable(rows, names):
+    """Rows behind a figure, for people: plain column names, dates without times, money rounded."""
+    out = rows[list(names)].rename(columns=names).copy()
+    for col in out.columns:
+        if pd.api.types.is_datetime64_any_dtype(out[col]):
+            out[col] = out[col].dt.strftime("%Y-%m-%d").fillna("")
+        elif col in MONEY_COLUMNS:
+            out[col] = out[col].map(lambda v: "" if pd.isna(v) else f"${v:,.2f}")
+    if "AI label" in out.columns:
+        out["AI label"] = out["AI label"].map(lambda v: LABEL_WORDS.get(v, v))
+    return out
+
+
 def client_detail(result, recs, labels, cfg):
     clients = list(result["ranked"]["client"]) + list(result["unranked"]["client"])
     client = st.selectbox("Client detail", clients, key="detail_client")
@@ -258,17 +276,22 @@ def client_detail(result, recs, labels, cfg):
     inv_rows = inv[(inv["client"] == client) & inv[schema.SRC_ROW].isin(row["invoice_rows"])]
     te_rows = te[(te["client"] == client) & te[schema.SRC_ROW].isin(row["time_rows"])]
     st.markdown("Invoices")
-    st.dataframe(inv_rows[[schema.SRC_FILE, schema.SRC_ROW, "invoice_date", "amount", "due", "paid_date",
-                           "days_late", "late_cost"]], hide_index=True, width="stretch")
+    st.dataframe(readable(inv_rows, {
+        schema.SRC_FILE: "File", schema.SRC_ROW: "Row", "invoice_date": "Invoice date", "amount": "Amount",
+        "due": "Due", "paid_date": "Paid", "days_late": "Days late", "late_cost": "Late payment cost"}),
+        hide_index=True, width="stretch")
     st.markdown("Time entries")
-    st.dataframe(te_rows[[schema.SRC_FILE, schema.SRC_ROW, "work_date", "staff", "hours", "hourly_cost",
-                          "labour_cost", "billable"]], hide_index=True, width="stretch")
+    st.dataframe(readable(te_rows, {
+        schema.SRC_FILE: "File", schema.SRC_ROW: "Row", "work_date": "Date", "staff": "Staff", "hours": "Hours",
+        "hourly_cost": "Hourly cost", "labour_cost": "Labour cost (with overhead)", "billable": "Billable"}),
+        hide_index=True, width="stretch")
     req = result["tables"].get("requests")
     if labels is not None and req is not None:
         mine = req.assign(label=[x["label"] for x in labels])
         mine = mine[mine["client"] == client].sort_values("request_date", ascending=False)
         st.markdown(f"Client requests with AI labels (beta, review before acting): {len(mine)}")
-        st.dataframe(mine[["request_date", "channel", "message", "label"]], hide_index=True, width="stretch")
+        st.dataframe(readable(mine, {"request_date": "Date", "channel": "Channel", "message": "Message",
+                                     "label": "AI label"}), hide_index=True, width="stretch")
 
 
 def main():
