@@ -44,6 +44,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-30 | 2026-10-07 | Clients with no invoices or hours in the last 12 months are not ranked | Confirmed | Yes (Pemberton check) |
 | D-31 | 2026-10-07 | Optional direct-cost column on invoices | Confirmed | Yes (Pemberton check) |
 | D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Confirmed | Yes (Pemberton check) |
+| D-33 | 2026-10-07 | Benchmark 8 and a re-run on unseen seeds 101-105 | Assumed | Yes (unseen seeds) |
 
 ---
 
@@ -641,6 +642,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** First run, before any code change: column mapping matched 7 of 10 of its headers (missed `total_amount`, `tech_name`, `ticket_type`; `billable` was made by our join and is not counted). After D-31 added "parts cost" to the word list, `parts_cost` also maps (8 of 11; this later addition is not a fair test). Validation caught 22 labour rows without a technician (error) and 45 duplicate labour rows (warning); it missed late-dated payments until D-29. It exposed D-29, D-30 and D-31. 0 customers lose money at customer level; its losses sit inside customers (maintenance visits and callbacks cost about $80,000 of unbilled labour; 71 of 116 projects ran over 20% past quoted hours but stayed profitable), which a per-client tool does not show.
 - **Evidence:** the Pemberton check (2026-10-07; a scratch script joined the Pemberton files into our two input files and ran `pipeline.run_pipeline` and `recommend.recommend_actions`; nothing from it is committed, D-32).
 - **Related decisions:** D-19, D-29, D-30, D-31
+
+## D-33: Benchmark 8 and a re-run on unseen seeds 101-105
+- **ID:** D-33
+- **Date:** 2026-10-07
+- **Status:** Assumed
+- **Context:** The team lead asked to test the product on unseen data. The recommendation rules (D-24) were tuned on seed 42, and seeds 1 and 2 were used in earlier checks. No benchmark measured the suggested actions.
+- **Options considered:**
+  1. Report only the existing benchmarks on seed 42.
+  2. Add benchmark 8 (actions and warnings against the planted client types, without request labels) and run benchmarks 2, 3, 7 and 8 on five seeds never used before (101 to 105).
+- **Decision:** Option 2. `scripts/run_benchmarks.py --seeds-only` runs the benchmarks that need no LLM on given seeds. Benchmarks 4 to 6 are not repeated: the demo messages come from the same 326-message bank, so new seeds would not give unseen text, and they would spend LLM credits.
+- **Factors that led to it:** New seeds show whether results depend on the dataset the rules were tuned on.
+- **Trade-offs accepted:** Same generator, so "unseen" means new random clients, not a new kind of business. Planted types describe the client, not the right action, so benchmark 8 is a sanity check, not accuracy. **The definitions were changed after the first look:** the first version counted churned clients (no work in the last 3 months, so the rules say keep) as missed loss-makers and checked warnings only against late-change clients. First-look numbers on seeds 101 to 105: loss-makers given an action other than keep 49 of 56; planted healthy kept 56 of 66; warnings on late-change clients 4 of 18.
+- **Expected effect:** Find where the seed-42 results do not hold.
+- **Actual measured effect:** Seeds 101 to 105 combined: benchmark 2 bottom K 55 of 56 by profit vs 18 of 56 by revenue (seed 103: 10 of 11); benchmark 3 baseline MAE 0.118 to 0.132 vs LightGBM 0.135 to 0.158, baseline better on all 5; benchmark 7 0.57 to 0.71 s. Benchmark 8: "end the contract" on planted loss-makers 9 of 9; active loss-makers given an action other than keep 49 of 49; churned loss-makers shown as keep 7 of 7; planted healthy never told cut or end 66 of 66, kept 56 of 66 (the other 10 are below the 30% target, so "raise price" is the rule working); warnings on planted problem clients 18 of 18; late-trouble clients warned 4 of 41 (most still had 10% to 50% margins in the last 3 months). Seed 42 for comparison: 15 of 15, 6 of 6, 10 of 10, 10 of 10, 4 of 4, and 4 of 13.
+- **Evidence:** `python scripts/run_benchmarks.py --seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json`, 2026-10-07; seed 42 from `bench8` on `data/generated` the same day.
+- **Related decisions:** D-06, D-21, D-24, D-27
 
 ---
 

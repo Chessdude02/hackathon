@@ -152,6 +152,7 @@ accurate on real businesses.
 | 4 | Message labeller vs 150 messages labelled by a teammate | Keyword + services **0.76** accuracy, AI **0.73 to 0.75** | The AI ties a keyword rule on our generated messages. It does not beat it. The keyword rule's lead is partly circular (its word list overlaps the generator's). |
 | 5 | Column mapping on 10 header styles | **172 of 172** | Meaningless as it stands: the same person wrote the test headers and the word list. Needs real export headers. |
 | 6 | No invented numbers in explanations | **0 of 48** AI texts contained an invented number; 0 reached the screen | The check proves numbers are not made up. It cannot prove each number is described correctly (we saw "48%, closer to the 30% target" when 48% is above it). |
+| 8 | Suggested actions vs planted client types (5 unseen seeds, D-33) | "End" only on planted loss-makers **9 of 9**; active loss-makers given an action **49 of 49**; healthy clients never told to cut or end **66 of 66**; warnings on problem clients **18 of 18**, but late-trouble clients warned only **4 of 41** | The rules are safe (no wrong "end") but the warning is late: it fires once the margin is already near zero. Seed 42, used for tuning, looked perfect; new seeds showed the weakness. |
 | 7 | Speed, upload to ranked list, 50 clients | **About 1 second** (target: under 60) | Fast enough. Labelling new messages is timed separately; all 2,601 demo messages took 33 minutes once, then 2.5 seconds when reused. |
 
 **Two of our three AI components lost to simple baselines.** We kept the

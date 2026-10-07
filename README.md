@@ -34,6 +34,14 @@ works, not that it is accurate on real businesses.
 | 5 | Column mapping on 10 header styles | 172 of 172, but circular (same author wrote headers and word list). Real export headers pending. |
 | 6 | Explanations with an invented number | 0 of 48 |
 | 7 | Upload to ranked list, 50 clients | About 1 second (target under 60) |
+| 8 | Suggested actions against planted client types | "End the contract" only ever on planted loss-makers (9 of 9 on new seeds); every active loss-maker got an action (49 of 49); no healthy client told to cut or end (66 of 66). Warnings: all 18 on planted problem clients, but only 4 of 41 late-trouble clients warned. |
+
+**Unseen data.** Benchmarks 2, 3, 7 and 8 were re-run on 5 new generated
+datasets (seeds 101 to 105) never used while building or tuning: bottom K
+55 of 56 by profit vs 18 of 56 by revenue; LightGBM lost to the baseline on
+all 5; about 0.6 s each. Seed 42, which the rules were tuned on, scored
+perfectly on benchmark 8; the new seeds did not (see the warning recall above
+and D-33). Same generator, so "unseen" means new random clients, not a new kind of data.
 
 Two of our three AI parts lost to, or only tied, simple rules. We report that
 instead of tuning on our own test data. Details: `docs/project_overview.md`
@@ -117,6 +125,9 @@ for labels. Explanations are saved the same way (`labels/saved_explanations.json
   clients look more profitable than they are. The screen warns about this.
 - **Thresholds are judgement.** The recommendation rules (for example, "end"
   needs a price rise over 50%) were not fitted to real outcomes.
+- **The "heading to a loss" warning is late, not early.** It fires only when a
+  client's recent margin is already near zero; on new data it caught 4 of 41
+  clients planted with late trouble.
 - **Dollar effects assume the client accepts the change** and the workload stays the same.
 - **The number check proves no number was invented,** not that each number is
   described correctly.

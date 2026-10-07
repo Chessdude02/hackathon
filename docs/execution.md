@@ -476,8 +476,13 @@ each with and without services, against `--hand-labels`, default
 `labelling/label_sheet_seed42_labeled.csv`; D-22), 5 (rule-based mapper on the
 10 header styles; circular), 6 (explanations for every ranked client, written
 fresh and checked for invented numbers; passing texts are saved for the demo;
-D-26) and 7 (load to ranked list). With `--seeds`, benchmarks 2 and 3 are repeated on extra
-generated datasets. This is the only script that reads the truth file.
+D-26), 7 (load to ranked list) and 8 (`bench8`: suggested actions and warnings
+against the planted client types, without request labels; D-33). With
+`--seeds`, benchmarks 2, 3 and 8 are repeated on extra generated datasets.
+`--seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json`
+runs only the benchmarks that need no LLM (2, 3, 7, 8) on those seeds, which
+were never used while building or tuning (verified 2026-10-07). This is the
+only script that reads the truth file.
 
 ## 19. Recommendations (Verified on 2026-10-06)
 

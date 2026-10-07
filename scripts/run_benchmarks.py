@@ -4,6 +4,7 @@
 Usage:
     python scripts/run_benchmarks.py --data data/generated --truth data/truth/truth_seed42.json \
         --out out/benchmarks.json [--seeds 1 2]
+    python scripts/run_benchmarks.py --seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json
 
 The only script that reads the generator's truth file (D-08). Benchmarks 2 to 5
 run on generated data: they show the code works, not that it is accurate on
@@ -73,6 +74,43 @@ def bench2(result, truth):
             "bottom10_share_revenue": round(found(by_revenue, 10) / k, 3),
             "bottomK_profit": f"{found(by_profit, k)}/{k}", "bottomK_revenue": f"{found(by_revenue, k)}/{k}",
             "note": "Bottom 10 can hold at most 10 of K planted clients; bottom K shows the full picture."}
+
+
+def bench8(result, truth, cfg):
+    """Recommendations against the planted client types (no request labels, so cut-scope rests on
+    unbilled hours only). Planted types say what kind of client it is, not the right action, so
+    these are sanity checks, not accuracy."""
+    from clientprofit import recommend
+    key = ingest.client_key
+    recs = recommend.recommend_actions(result, cfg)
+    t = {key(n): c for n, c in truth["clients"].items()}
+    recs = recs.assign(k=recs["client"].map(key))
+    recs = recs[recs["k"].isin(t)]
+    types = recs["k"].map(lambda k: set(t[k]["types"]))
+    loss = recs["k"].map(lambda k: t[k]["loss_making"] is True)
+    churned = types.map(lambda x: "churned" in x)  # left before the last 3 months: nothing to act on
+    healthy = types.map(lambda x: x <= {"healthy", "repriced"})  # planted healthy, no planted change
+    problem = ~healthy  # any planted problem: big loss, scope creep, decline, slow payer, late changes
+    late = types.map(lambda x: bool(x & {"late_scope_creep", "late_decline"}))
+    act = recs["action"]
+    end = act == recommend.END
+    warn = recs["heading_to_loss"]
+    share = lambda m, n: f"{int(m.sum())}/{int(n.sum())}"  # noqa: E731
+    return {
+        "ranked_with_truth": len(recs),
+        "actions": act.value_counts().to_dict(),
+        "active_loss_makers_given_an_action_other_than_keep": share(loss & ~churned & (act != recommend.KEEP),
+                                                                    loss & ~churned),
+        "churned_loss_makers_marked_keep_no_recent_work": share(loss & churned & (act == recommend.KEEP),
+                                                                loss & churned),
+        "end_suggestions_that_are_planted_loss_makers": share(end & loss, end),
+        "planted_healthy_never_told_cut_or_end": share(healthy & act.isin([recommend.KEEP, recommend.RAISE]), healthy),
+        "planted_healthy_kept": share(healthy & (act == recommend.KEEP), healthy),
+        "warnings_on_planted_problem_clients": share(warn & problem, warn),
+        "late_decline_or_scope_creep_warned": share(warn & late, late),
+        "note": "Planted 'healthy' means profitable, not at the 30% target, so 'raise price' on one is the "
+                "rule working. Churned clients had no work in the last 3 months, so the rules say keep.",
+    }
 
 
 def bench3(result, cfg):
@@ -177,24 +215,33 @@ def main():
     ap.add_argument("--truth", default="data/truth/truth_seed42.json")
     ap.add_argument("--out", default="out/benchmarks.json")
     ap.add_argument("--seeds", type=int, nargs="*", default=[1, 2], help="extra generated seeds for benchmarks 2-3")
+    ap.add_argument("--seeds-only", action="store_true",
+                    help="only run the benchmarks that need no LLM (2, 3, 7, 8) on --seeds, e.g. unseen seeds")
     ap.add_argument("--hand-labels", default="labelling/label_sheet_seed42_labeled.csv")
     args = ap.parse_args()
 
     cfg = config.load_config()
-    truth = json.loads(Path(args.truth).read_text())
-    result = run_on(args.data)
-    out = {"generated_data_note": "Benchmarks 2, 3 and 5 run on generated data: they show the code works, "
-                                  "not that it is accurate on real businesses.",
-           "1_cost_engine_vs_hand_calculation": bench1(),
-           "2_ranking": {f"seed {truth['seed']}": bench2(result, truth)},
-           "3_forecast_mae": {f"seed {truth['seed']}": bench3(result, cfg)},
-           "4_scope_detector": (bench4(result, truth, args.hand_labels) if Path(args.hand_labels).exists()
-                                else "Pending: needs the 150 hand labels."),
-           "5_column_mapping": bench5(args.data, truth),
-           "6_invented_numbers": bench6(result, _demo_labels(result)),
-           "7_speed": {"clients": len(result["totals"]),
-                       "seconds_upload_to_ranked": round(result["seconds_upload_to_ranked"], 2),
-                       "note": "Command-line load, map, validate, rank. Request labelling is timed separately (D-15)."}}
+    note = ("Benchmarks 2, 3, 5 and 8 run on generated data: they show the code works, "
+            "not that it is accurate on real businesses.")
+    if args.seeds_only:
+        out = {"generated_data_note": note, "2_ranking": {}, "3_forecast_mae": {}, "7_speed": {},
+               "8_recommendations_vs_planted": {}}
+    else:
+        truth = json.loads(Path(args.truth).read_text())
+        result = run_on(args.data)
+        out = {"generated_data_note": note,
+               "1_cost_engine_vs_hand_calculation": bench1(),
+               "2_ranking": {f"seed {truth['seed']}": bench2(result, truth)},
+               "3_forecast_mae": {f"seed {truth['seed']}": bench3(result, cfg)},
+               "4_scope_detector": (bench4(result, truth, args.hand_labels) if Path(args.hand_labels).exists()
+                                    else "Pending: needs the 150 hand labels."),
+               "5_column_mapping": bench5(args.data, truth),
+               "6_invented_numbers": bench6(result, _demo_labels(result)),
+               "7_speed": {"clients": len(result["totals"]),
+                           "seconds_upload_to_ranked": round(result["seconds_upload_to_ranked"], 2),
+                           "note": "Command-line load, map, validate, rank. Request labelling is timed "
+                                   "separately (D-15)."},
+               "8_recommendations_vs_planted": {f"seed {truth['seed']}": bench8(result, truth, cfg)}}
     if args.seeds:
         from generator.generate import generate
         for seed in args.seeds:
@@ -203,6 +250,9 @@ def main():
             r = run_on(d / "data")
             out["2_ranking"][f"seed {seed}"] = bench2(r, t)
             out["3_forecast_mae"][f"seed {seed}"] = bench3(r, cfg)
+            out["8_recommendations_vs_planted"][f"seed {seed}"] = bench8(r, t, cfg)
+            if args.seeds_only:
+                out["7_speed"][f"seed {seed}"] = round(r["seconds_upload_to_ranked"], 2)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))
