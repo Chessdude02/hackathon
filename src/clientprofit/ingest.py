@@ -71,6 +71,10 @@ SYNONYMS = {
         "invoice_date": ["invoice date", "date", "issue date", "issued", "date issued", "created",
                          "billed on", "inv date", "inv dt", "posting date"],
         "amount": ["amount", "total", "invoice total", "net amount", "amt", "value", "amount due"],
+        # D-31, added 2026-10-07 after the Pemberton check: words for costs passed through to a client.
+        "direct_cost": ["direct cost", "direct costs", "cost of sales", "cogs", "pass through",
+                        "pass through cost", "expenses", "expense", "materials", "materials cost",
+                        "parts cost", "third party cost", "freelancer cost", "media cost", "ad spend"],
         "due_date": ["due date", "due", "due dt", "payment due", "due on"],
         "paid_date": ["paid date", "date paid", "paid on", "paid at", "payment date", "settled",
                       "received on", "pd dt", "clear date", "paid"],

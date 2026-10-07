@@ -54,7 +54,7 @@ def main():
     recs = recommend.recommend_actions(result, settings)  # without request labels (they are optional)
     recs.to_csv(out / "recommendations.csv", index=False)
     print(f"As of {result['as_of'].date()}: {len(result['ranked'])} ranked, "
-          f"{len(result['unranked'])} not enough history, {len(result['problems'])} problems reported, "
+          f"{len(result['unranked'])} not ranked, {len(result['problems'])} problems reported, "
           f"rows excluded: {result['excluded'] or 'none'}")
     print(f"Upload to ranked list: {total:.2f} s (pipeline only {result['seconds_to_ranked']:.2f} s)")
     print("Suggested actions:", recs["action"].value_counts().to_dict(),

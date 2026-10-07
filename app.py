@@ -123,12 +123,18 @@ def problems_panel(problems):
     return exclusions
 
 
+def has_direct_costs(result):
+    return bool((result["client_month"]["direct_cost"] != 0).any())
+
+
 def ranked_table(result, recs):
     r = result["ranked"].merge(recs, on="client", how="left")
+    direct = {"Direct costs (12 mo)": r["direct_cost_last_12m"].map(money)} if has_direct_costs(result) else {}
     return pd.DataFrame({
         "Rank": r["rank"], "Client": r["client"],
         "Profit (12 mo)": r["profit_last_12m"].map(money),
         "Revenue (12 mo)": r["revenue_last_12m"].map(money),
+        **direct,
         "Margin": r["margin_last_12m"].map(lambda v: "" if pd.isna(v) else f"{v:.0%}"),
         "Profit (last 3 mo)": r["profit_3m"].map(money),
         "Losing money": r["loss_making"].map({True: "Yes", False: ""}),
@@ -235,7 +241,7 @@ def explanation_box(rec, totals, cfg):
         st.caption("Written by AI from the figures above; every number in it was checked against them.")
 
 
-MONEY_COLUMNS = {"Amount", "Late payment cost", "Hourly cost", "Labour cost (with overhead)"}
+MONEY_COLUMNS = {"Amount", "Direct cost", "Late payment cost", "Hourly cost", "Labour cost (with overhead)"}
 LABEL_WORDS = {"in_scope": "routine", "extra_unpaid": "extra unpaid work", "unclear": "unclear"}
 
 
@@ -261,10 +267,12 @@ def client_detail(result, recs, labels, cfg):
         totals = result["totals"].set_index("client").loc[client].to_dict()
         explanation_box(rec.iloc[0].to_dict(), totals, cfg)
     else:
-        st.info("Not enough history to rank or recommend an action (under 3 months of data).")
+        reason = result["unranked"].set_index("client").loc[client, "not_ranked_because"]
+        st.info(f"Not ranked and no action suggested: {reason}.")
     cm = result["client_month"][result["client_month"]["client"] == client]
+    direct = {"Direct costs": cm["direct_cost"].map(money)} if has_direct_costs(result) else {}
     st.dataframe(pd.DataFrame({
-        "Month": cm["month"].astype(str), "Revenue": cm["revenue"].map(money),
+        "Month": cm["month"].astype(str), "Revenue": cm["revenue"].map(money), **direct,
         "Labour cost": cm["labour_cost"].map(money), "Late payment cost": cm["late_cost"].map(money),
         "Profit": cm["profit"].map(money), "Hours": cm["hours"].round(1),
         "Margin": cm["margin"].map(lambda v: "no revenue" if pd.isna(v) else f"{v:.0%}"),
@@ -278,7 +286,8 @@ def client_detail(result, recs, labels, cfg):
     st.markdown("Invoices")
     st.dataframe(readable(inv_rows, {
         schema.SRC_FILE: "File", schema.SRC_ROW: "Row", "invoice_date": "Invoice date", "amount": "Amount",
-        "due": "Due", "paid_date": "Paid", "days_late": "Days late", "late_cost": "Late payment cost"}),
+        "due": "Due", "paid_date": "Paid", "days_late": "Days late", "late_cost": "Late payment cost",
+        **({"direct_cost": "Direct cost"} if has_direct_costs(result) else {})}),
         hide_index=True, width="stretch")
     st.markdown("Time entries")
     st.dataframe(readable(te_rows, {
@@ -358,10 +367,11 @@ def main():
     labels = st.session_state.get("labels")
     slot = ranked_view(result, recommend.recommend_actions(result, settings, labels))
     if len(result["unranked"]):
-        st.markdown("**Not enough history to rank** (results unreliable)")
+        st.markdown("**Not ranked** (too little to go on, so no rank and no suggested action)")
         u = result["unranked"]
-        st.dataframe(pd.DataFrame({"Client": u["client"], "Months of data": u["months_of_data"],
-                                   "Profit so far": u["profit_last_12m"].map(money)}),
+        st.dataframe(pd.DataFrame({"Client": u["client"], "Why not ranked": u["not_ranked_because"],
+                                   "Months of data": u["months_of_data"],
+                                   "Profit, all data": u["profit_all_data"].map(money)}),
                      hide_index=True, width="stretch")
     new_labels = scope_section(result, cfg)
     if new_labels is not None:

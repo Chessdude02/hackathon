@@ -82,3 +82,10 @@ def test_provider_down_gives_template(fake, tmp_path):
 
 def test_template_contains_only_fact_numbers():
     assert explain.check_numbers(explain.template_text(REC), explain.facts_for(REC, TOTALS)) == []
+
+
+def test_direct_cost_fact_only_when_present():
+    """Clients without direct costs keep the same facts, so saved explanations still match (D-31)."""
+    assert not any("Direct" in k for k in explain.facts_for(REC, TOTALS))
+    f = explain.facts_for(REC, {**TOTALS, "direct_cost_last_12m": 8000.0})
+    assert f["Direct costs over the last 12 months (not staff time)"] == "$8,000"

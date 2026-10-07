@@ -23,7 +23,7 @@ FALLING_TREND = -0.10         # margin drop vs the quarter before that counts as
 
 
 def _recent(result, months=MONTHS):
-    """Per client: revenue, full cost (labour + late), unbilled labour cost over the last `months`."""
+    """Per client: revenue, full cost (direct + labour + late), unbilled labour cost over the last `months`."""
     end = pd.Period(result["as_of"], "M")
     cm = result["client_month"]
     cm = cm[cm["month"] > end - months]
@@ -32,7 +32,7 @@ def _recent(result, months=MONTHS):
     rows = {}
     for client, g in cm.groupby("client"):
         rows[client] = {"revenue_3m": g["revenue"].sum(),
-                        "cost_3m": g["labour_cost"].sum() + g["late_cost"].sum()}
+                        "cost_3m": g["direct_cost"].sum() + g["labour_cost"].sum() + g["late_cost"].sum()}
     for client, g in te.groupby("client"):
         unbilled = g[g["billable"] == False]  # noqa: E712
         r = rows.setdefault(client, {"revenue_3m": 0.0, "cost_3m": 0.0})

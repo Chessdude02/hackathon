@@ -80,9 +80,10 @@ money, which are heading toward a loss, and what should I do about each one?**
 
 | Part | What it will do |
 |---|---|
-| **Forecast on the screen** | Trend lines per client next to the action. |
+| **Forecast on the screen** | Trend lines per client next to the action. **Dropped on 2026-10-07** in favour of direct costs (D-31). |
 | **Services table on the settings screen** | Type each client's services in the app instead of uploading a file. |
-| **Deployment** | A public link on Streamlit Community Cloud (D-28). The code side is done: the app builds its own demo data on first start. The repo owner still has to deploy it. |
+| **Deployment** | Done: https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/ (D-28). |
+| **Direct costs** | Built on 2026-10-07: an optional cost column on invoices (freelancers, ad spend, materials), subtracted from profit (D-31). |
 
 ---
 

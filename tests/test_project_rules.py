@@ -35,4 +35,5 @@ def test_hand_calc_files_use_schema_columns():
     folder = REPO / "tests" / "fixtures" / "hand_calc"
     for table, cols in schema.TABLES.items():
         headers = list(pd.read_csv(folder / f"{table}.csv", nrows=0).columns)
-        assert headers == list(cols)
+        # The hand-calculation files predate the optional direct_cost column (D-31); absent means 0.
+        assert headers == [c for c in cols if c != "direct_cost"]

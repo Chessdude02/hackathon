@@ -220,7 +220,10 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | A required value is empty or unreadable (client, dates, amount, staff, hours) | cost_engine | Stops with `CostEngineError` listing the row numbers | The rows to fix or exclude in the validation step |
 | Negative or zero hours | validate | Keeps the rows, lists them | The rows, with a choice to exclude them |
 | Client has hours but no invoices | validate | Keeps the client, flags it | Client shown as all cost, with a warning |
-| Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed apart as "not enough history" |
+| Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed under "Not ranked" with the reason |
+| Client has no invoices or hours in the last 12 months | cost_engine | Not ranked (D-30) | Client listed under "Not ranked" with the reason and its profit over all the data |
+| Payment dated after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
+| No direct-cost column | ingest, cost_engine | Direct cost counts as 0 (D-31) | No direct-cost columns on the screen |
 | Forecast model fails or is not available | forecast | Uses the baseline | A note that the baseline was used |
 | LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |
 | More than 200 new messages to label | app | Does not start labelling | The expected time and a "Label them now" button |
@@ -359,16 +362,16 @@ hand-calculated files in `tests/fixtures/hand_calc/` exactly.
 | `apply_mapping(raw, mapping, table, src_file)` | `ingest.py` | Renames confirmed columns and types them; unmapped columns are ignored |
 | `client_key(name)` | `ingest.py` | Name used to match clients (D-19) |
 | `unify_client_names(tables)` | `ingest.py` | One display name per client; keeps `client_original`; returns the merges |
-| `validate_inputs(tables, settings=None, merged_names=None)` | `validate.py` | Problems with severity, table, `_src_row` numbers, message and `suggest_exclude`. Changes nothing |
+| `validate_inputs(tables, settings=None, merged_names=None)` | `validate.py` | Problems with severity, table, `_src_row` numbers, message and `suggest_exclude`, including payments dated after the last invoice or work date or in the future (D-29) and negative direct costs. Changes nothing |
 | `exclude_rows(tables, exclusions)` | `validate.py` | Removes only the rows the owner chose |
 | `has_errors(problems)`, `summary(problems)` | `validate.py` | Any error? / problems as a table |
 | `load_canonical(folder)` | `ingest.py` | Reads `invoices.csv`, `time_entries.csv`, `requests.csv` whose headers already match the schema |
 | `coerce_types(df, table, src_file)` | `ingest.py` | Gives each schema column its type; adds `_src_file` and `_src_row` (spreadsheet row number, header = 1). Unreadable values and blank text become empty; no row is dropped |
-| `as_of_date(invoices, time_entries, requests=None)` | `cost_engine.py` | Latest invoice, paid, work or request date (D-18) |
-| `invoice_costs(invoices, settings, as_of)` | `cost_engine.py` | Due date, days late, late cost, month, overdue-unpaid flag per invoice |
+| `as_of_date(invoices, time_entries, requests=None)` | `cost_engine.py` | Latest invoice, work or request date; payment and due dates are left out (D-29) |
+| `invoice_costs(invoices, settings, as_of)` | `cost_engine.py` | Due date, days late, late cost, month, overdue-unpaid flag per invoice; `direct_cost` filled with 0 when empty or missing (D-31) |
 | `labour_costs(time_entries, settings)` | `cost_engine.py` | Hours x hourly cost x `overhead_multiplier` per time entry |
-| `compute_client_month_profit(invoices, time_entries, settings, requests=None)` | `cost_engine.py` | Revenue, labour cost, late cost, profit, margin (empty when revenue is 0), and the `_src_row` numbers behind each client-month |
-| `compute_client_totals(client_month, invoices_with_costs, settings, as_of)` | `cost_engine.py` | Months of data, 12-month revenue, profit and margin, `profit_if_overdue_unpaid` (D-16), ranked, loss-making |
+| `compute_client_month_profit(invoices, time_entries, settings, requests=None)` | `cost_engine.py` | Revenue, direct cost, labour cost, late cost, profit = revenue − direct − labour − late (D-31), margin (empty when revenue is 0), and the `_src_row` numbers behind each client-month |
+| `compute_client_totals(client_month, invoices_with_costs, settings, as_of)` | `cost_engine.py` | Months of data, 12-month revenue, direct cost, profit and margin, profit over all data, `profit_if_overdue_unpaid` (D-16; an overdue invoice's direct cost stays), ranked, `not_ranked_because` (under the minimum months, or no invoices or hours in the last 12 months, D-30), loss-making |
 | `rank_clients(totals)` | `cost_engine.py` | Ranked clients by 12-month profit, and unranked clients apart |
 
 Settings used: `staff_costs`, `overhead_multiplier`, `late_payment_annual_rate`,
@@ -399,8 +402,9 @@ entries required; requests, clients and staff costs optional, D-25), then
 (1) check or change the suggested mapping per file, (2) costs and rules with
 an editable staff cost table, (3) problems, each with an "exclude these rows"
 box (ticked by default only where suggested), then "Rank clients" shows
-(4) the ranked list with profit over 12 and the last 3 months, suggested
-action, effect per year and "heading to a loss" (D-24), a time-log warning, unranked clients apart, then "Scope-creep
+(4) the ranked list with profit over 12 and the last 3 months, direct costs
+when the data has any (D-31), suggested action, effect per year and "heading
+to a loss" (D-24), a time-log warning, unranked clients apart with the reason (D-30), then "Scope-creep
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, monthly

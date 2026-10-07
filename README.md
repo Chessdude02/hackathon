@@ -47,11 +47,12 @@ Diagram: `docs/architecture.md`. In short:
    suggests which column means what; the owner confirms.
 2. **Validate:** lists every problem (bad values, duplicates, staff without a
    cost). No row is ever dropped silently; the owner ticks what to exclude.
-3. **Cost engine (plain arithmetic, no AI):** profit = revenue − hours × hourly
-   cost × overhead − cost of late payment, per client per month. Every figure
-   links back to its input rows.
-4. **Rank:** by 12-month profit. Clients with under 3 months of data are
-   listed apart and not ranked.
+3. **Cost engine (plain arithmetic, no AI):** profit = revenue − direct costs
+   (optional: freelancers, ad spend, materials) − hours × hourly cost × overhead
+   − cost of late payment, per client per month. Every figure links back to
+   its input rows.
+4. **Rank:** by 12-month profit. Clients with under 3 months of data, or with
+   nothing in the last 12 months, are listed apart with the reason and not ranked.
 5. **Recommend:** fixed rules on the last 3 months. "End the contract" only
    when the client loses money over 12 months and 3 months, cutting unbilled
    work would not fix it, and the price rise needed is over 50%.
@@ -106,6 +107,12 @@ for labels. Explanations are saved the same way (`labels/saved_explanations.json
 ## Honest limits
 
 - **Not tested on a real agency.** Every benchmark uses generated or hand-made data.
+  We also ran it on an independent synthetic dataset built for a university
+  course (an HVAC contractor): column matching found 7 of 10 of its headers on
+  the first try, and it exposed three weaknesses we then fixed (D-29 to D-32).
+  That data is not in this repo.
+- **Costs not tied to an invoice** (rent, software for the whole agency) are not
+  split across clients; only staff time and per-invoice direct costs are.
 - **Profit is only as good as the time log.** If staff under-log hours,
   clients look more profitable than they are. The screen warns about this.
 - **Thresholds are judgement.** The recommendation rules (for example, "end"

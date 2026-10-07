@@ -166,3 +166,24 @@ def test_pipeline_runs_without_requests(tmp_path):
                 "min_months_for_ranking": 3}
     result = pipeline.run_pipeline(tables, settings)
     assert result["stopped"] is None and len(result["ranked"]) > 30
+
+
+def test_payment_after_last_activity_is_flagged():
+    """D-29: payment dates no longer set the as-of date, so odd ones are shown instead."""
+    import pandas as pd
+    from clientprofit.ingest import coerce_types
+    from clientprofit.validate import validate_inputs
+    inv = coerce_types(pd.DataFrame({"client": ["A", "A"], "invoice_date": ["2026-01-01", "2026-01-02"],
+                                     "amount": ["10", "10"], "paid_date": ["2026-01-02", "2099-01-01"]}),
+                       "invoices", "i.csv")
+    te = coerce_types(pd.DataFrame({"client": ["A"], "staff": ["Ana"], "work_date": ["2026-01-03"],
+                                    "hours": ["1"], "billable": ["yes"]}), "time_entries", "t.csv")
+    checks = {p["check"]: p["rows"] for p in validate_inputs({"invoices": inv, "time_entries": te})}
+    assert checks["paid_after_last_activity"] == [3] and checks["paid_in_future"] == [3]
+    problems = validate_inputs({"invoices": inv, "time_entries": te})
+    assert not any("direct_cost" in p["message"] for p in problems)  # unmapped direct cost is not a problem
+
+
+def test_parts_cost_header_maps_to_direct_cost():
+    from clientprofit.ingest import propose_mapping
+    assert propose_mapping(["Customer", "Date", "Amount", "Parts Cost", "Paid"], "invoices")["Parts Cost"] == "direct_cost"

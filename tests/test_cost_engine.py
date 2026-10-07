@@ -115,8 +115,61 @@ def test_unpaid_invoice_runs_late_to_as_of_date():
 
 
 def test_as_of_ignores_due_dates():
-    _, _, _, as_of, _ = run(invoices=[("A", "2026-01-01", 100, "2026-06-30", "2026-01-10")])
-    assert as_of == pd.Timestamp("2026-01-10")
+    _, _, _, as_of, _ = run(invoices=[("A", "2026-01-01", 100, "2026-06-30", "2026-01-10")],
+                            times=[("A", "Ana", "2026-01-05", 1, "TRUE")])
+    assert as_of == pd.Timestamp("2026-01-05")
+
+
+def test_as_of_ignores_payment_dates():
+    """D-29 (replaces D-18's use of payment dates): a late payment must not move the 12-month window."""
+    _, _, _, as_of, _ = run(invoices=[("A", "2026-01-01", 100, None, "2026-11-30")],
+                            times=[("A", "Ana", "2026-01-20", 1, "TRUE")])
+    assert as_of == pd.Timestamp("2026-01-20")
+
+
+def _with_direct(rows):
+    inv = pd.DataFrame(rows, columns=["client", "invoice_date", "amount", "due_date", "paid_date", "direct_cost"])
+    te = pd.DataFrame([("A", "Ana", "2026-01-10", "2", "TRUE")],
+                      columns=["client", "staff", "work_date", "hours", "billable"])
+    inv_t = coerce_types(inv.astype(str).replace("None", ""), "invoices", "i.csv")
+    te_t = coerce_types(te, "time_entries", "t.csv")
+    cm, inv_c, te_c, as_of = ce.compute_client_month_profit(inv_t, te_t, SETTINGS)
+    return cm, inv_c, ce.compute_client_totals(cm, inv_c, SETTINGS, as_of)
+
+
+def test_direct_cost_is_subtracted_in_invoice_month():
+    """D-31: profit = revenue - direct cost - labour - late cost. 2 h x 50 x 1.5 = 150 labour."""
+    cm, _, totals = _with_direct([("A", "2026-01-15", 1000, None, "2026-01-20", 300),
+                                  ("A", "2026-01-25", 500, None, "2026-01-30", None)])
+    assert cm.loc[0, "direct_cost"] == 300 and cm.loc[0, "profit"] == pytest.approx(1500 - 300 - 150)
+    assert totals.loc[0, "direct_cost_last_12m"] == 300
+
+
+def test_missing_direct_cost_counts_as_zero():
+    cm, *_ = run(invoices=[("A", "2026-01-15", 1000, None, "2026-01-20")])
+    assert cm.loc[0, "direct_cost"] == 0 and cm.loc[0, "profit"] == 1000
+
+
+def test_worst_case_keeps_direct_cost_of_overdue_invoice():
+    """D-31 with D-16: an unpaid invoice's revenue goes, the money already spent on it stays."""
+    _, inv, totals = _with_direct([("A", "2026-01-01", 1000, None, None, 400),
+                                   ("A", "2026-06-01", 10, None, "2026-06-01", None)])
+    late = inv.loc[0, "late_cost"]
+    assert inv.loc[0, "overdue_unpaid"]
+    assert totals.loc[0, "profit_if_overdue_unpaid"] == pytest.approx(totals.loc[0, "profit_last_12m"] - 1000 + late)
+
+
+def test_client_with_no_activity_in_window_is_not_ranked():
+    """D-30: old activity only, nothing in the last 12 months: listed apart with the reason."""
+    _, _, _, _, totals = run(invoices=[("Old", "2024-01-15", 100, None, "2024-01-20"),
+                                       ("Old", "2024-02-15", 100, None, "2024-02-20"),
+                                       ("Old", "2024-03-15", 100, None, "2024-03-20"),
+                                       ("New", "2026-01-15", 100, None, "2026-01-20"),
+                                       ("New", "2026-02-15", 100, None, "2026-02-20"),
+                                       ("New", "2026-03-15", 100, None, "2026-03-20")])
+    t = totals.set_index("client")
+    assert not t.loc["Old", "ranked"] and t.loc["Old", "not_ranked_because"].startswith("no invoices or hours")
+    assert t.loc["Old", "profit_all_data"] == 300 and t.loc["New", "ranked"]
 
 
 def test_profit_and_zero_revenue_month_margin_is_empty():

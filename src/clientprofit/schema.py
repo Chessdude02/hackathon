@@ -16,6 +16,10 @@ INVOICES = {
     "amount": "float",
     "due_date": "date",
     "paid_date": "date",
+    # Optional (D-31): money spent on this invoice's work that is not staff time,
+    # e.g. freelancers, ad spend, software or materials passed on to the client.
+    # Empty or not mapped counts as 0.
+    "direct_cost": "float",
 }
 INVOICES_REQUIRED = ("client", "invoice_date", "amount", "paid_date")
 

@@ -26,7 +26,8 @@ def _unreadable(tables):
                                     f"'{col}' is empty or could not be read in {len(rows)} row(s)",
                                     suggest_exclude=True))
         for col in schema.TABLES.get(table, {}):
-            if col in schema.VALUE_REQUIRED.get(table, ()) or col in ("paid_date", "due_date", "billable"):
+            if col in schema.VALUE_REQUIRED.get(table, ()) or col in ("paid_date", "due_date", "billable",
+                                                                       "direct_cost"):
                 continue
             rows = df.loc[df[col].isna(), SRC_ROW].tolist() if col in df.columns else []
             if rows:
@@ -60,7 +61,32 @@ def _bad_values(tables):
         if rows:
             out.append(_problem("negative_amount", WARNING, "invoices", rows,
                                 f"{len(rows)} invoice(s) with a negative amount (credit notes?)"))
+        if "direct_cost" in inv.columns:
+            rows = inv.loc[inv["direct_cost"] < 0, SRC_ROW].tolist()
+            if rows:
+                out.append(_problem("negative_direct_cost", WARNING, "invoices", rows,
+                                    f"{len(rows)} invoice(s) with a negative direct cost"))
+        # D-29: payment dates do not set the as-of date, so one dated after all invoices and work
+        # (or after today) is probably a typo or an export taken later; show it.
+        last = _last_activity(tables)
+        if last is not None:
+            rows = inv.loc[inv["paid_date"] > last, SRC_ROW].tolist()
+            if rows:
+                out.append(_problem("paid_after_last_activity", WARNING, "invoices", rows,
+                                    f"{len(rows)} payment(s) dated after the last invoice or work date "
+                                    f"({last:%d %b %Y}). Check the dates; they still count as paid on that day"))
+        rows = inv.loc[inv["paid_date"] > pd.Timestamp.today().normalize(), SRC_ROW].tolist()
+        if rows:
+            out.append(_problem("paid_in_future", WARNING, "invoices", rows,
+                                f"{len(rows)} payment(s) dated in the future"))
     return out
+
+
+def _last_activity(tables):
+    dates = [tables[t][c] for t, c in (("invoices", "invoice_date"), ("time_entries", "work_date"),
+                                       ("requests", "request_date")) if t in tables and c in tables[t]]
+    dates = [d.max() for d in dates if d.notna().any()]
+    return max(dates) if dates else None
 
 
 def _duplicates(tables):

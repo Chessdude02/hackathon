@@ -29,7 +29,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-15 | 2026-10-05 | Label requests once, save labels, ranked list never waits for labels | Assumed | No |
 | D-16 | 2026-10-05 | Worst-case profit removes an overdue invoice completely | Assumed | No |
 | D-17 | 2026-10-05 | Optional "services covered" per client, given to the request labeller | Assumed | No |
-| D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Assumed | Yes (benchmark 1) |
+| D-18 | 2026-10-05 | As-of date uses activity dates only, not due dates | Superseded by D-29 | Yes (benchmark 1) |
 | D-19 | 2026-10-05 | Rule-based column mapping, name cleaning and validation rules | Assumed | Yes (seed 42, circular) |
 | D-20 | 2026-10-06 | PyYAML for config and a demo-folder setting for tests | Assumed | No |
 | D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Assumed | Yes (benchmark 3) |
@@ -40,6 +40,10 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Assumed | Yes (benchmark 6) |
 | D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Assumed | Yes (benchmark 2, 3 seeds) |
 | D-28 | 2026-10-06 | Deploy on Streamlit Community Cloud; app builds missing demo data; "demo only" line | Assumed | Yes (live app, 2026-10-07) |
+| D-29 | 2026-10-07 | As-of date from invoice, work and request dates only; odd payment dates flagged | Assumed | Yes (Pemberton check, benchmark 1) |
+| D-30 | 2026-10-07 | Clients with no invoices or hours in the last 12 months are not ranked | Assumed | Yes (Pemberton check) |
+| D-31 | 2026-10-07 | Optional direct-cost column on invoices | Assumed | Yes (Pemberton check) |
+| D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Assumed | Yes (Pemberton check) |
 
 ---
 
@@ -373,7 +377,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-18: As-of date uses activity dates only, not due dates
 - **ID:** D-18
 - **Date:** 2026-10-05
-- **Status:** Assumed
+- **Status:** Superseded by D-29
 - **Context:** D-11 defines the as-of date as "the latest date in any of the three files". The invoices file can carry explicit due dates, which may lie in the future.
 - **Options considered:**
   1. Latest of every date column, due dates included (D-11 as written).
@@ -572,6 +576,71 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** On a clean folder, generating seed 42 took 7.0 s and the invoices, time entries, requests and clients files were byte-identical to the ones the saved labels were made from. `tests/test_app.py::test_missing_demo_data_is_built_on_first_start` passes. Deployed on 2026-10-07 at https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/ ; the team lead's check on the live app: 48 clients ranked in 1.34 s, all 2,601 request labels reused from the saved file (no "Label them now" button), explanations shown from the saved file.
 - **Evidence:** Check run on 2026-10-06 (scratch script comparing a fresh seed-42 build with `data/generated`); the test above; team lead's screenshots of the live app, 2026-10-07.
 - **Related decisions:** D-08, D-14, D-15, D-20, D-26
+
+## D-29: As-of date from invoice, work and request dates only; odd payment dates flagged
+- **ID:** D-29
+- **Date:** 2026-10-07
+- **Status:** Assumed
+- **Context:** D-18 counted payment dates as activity. In the Pemberton dataset (D-32) the latest payment, 15 Oct 2026, was a month after the last invoice or work (14 Sep 2026) and after today. It became the as-of date and moved the 12-month window forward, cutting off real work.
+- **Options considered:**
+  1. Keep D-18: payment dates set the as-of date.
+  2. As-of date is the latest invoice, work or request date; a payment dated after that, or in the future, is shown as a warning and still counts as paid on its date.
+- **Decision:** Option 2, approved by the team lead on 2026-10-07 ("fix the two bugs"). Replaces D-18.
+- **Factors that led to it:** A payment is a consequence of earlier work, not new work. One mistyped or late-dated payment must not move the window. The owner should still see such dates.
+- **Trade-offs accepted:** Days late still run to the real payment date, even past the as-of date. On data where the export was taken weeks after the last work, legitimate payments are flagged.
+- **Expected effect:** The window ends at the last real activity.
+- **Actual measured effect:** Pemberton: as-of date moved from 15 Oct 2026 to 14 Sep 2026; 39 payments dated after the last activity and 6 in the future are flagged. Seed 42 demo data and the hand calculation: as-of date, ranked list and actions identical (benchmark 1 still exact).
+- **Evidence:** the Pemberton check (2026-10-07; a scratch script joined the Pemberton files into our two input files and ran `pipeline.run_pipeline` and `recommend.recommend_actions`; nothing from it is committed, D-32); `scripts/run_pipeline.py --exclude-suggested` on `data/generated` compared with the previous run's `ranked.csv` and `recommendations.csv`; `pytest` 136 passed (`test_as_of_ignores_payment_dates`, `test_payment_after_last_activity_is_flagged`).
+- **Related decisions:** D-11, D-16, D-18, D-32
+
+## D-30: Clients with no invoices or hours in the last 12 months are not ranked
+- **ID:** D-30
+- **Date:** 2026-10-07
+- **Status:** Assumed
+- **Context:** A client with 3 or more months of history but nothing in the last 12 months was ranked with $0 revenue and $0 profit, which says nothing about it.
+- **Options considered:**
+  1. Keep ranking them at $0.
+  2. List them apart with the reason "no invoices or hours in the last 12 months", like clients with too little history, and show their profit over all the data.
+- **Decision:** Option 2, approved by the team lead on 2026-10-07. Every unranked client now carries a reason.
+- **Factors that led to it:** A rank must rest on figures from the period it claims to measure.
+- **Trade-offs accepted:** A client with only direct costs or only hours in the window still counts as active.
+- **Expected effect:** No $0 rows in the ranked list.
+- **Actual measured effect:** Pemberton: 27 customers moved from the ranked list to "not ranked"; seed 42 demo: none (ranked list identical).
+- **Evidence:** the Pemberton check (2026-10-07; a scratch script joined the Pemberton files into our two input files and ran `pipeline.run_pipeline` and `recommend.recommend_actions`; nothing from it is committed, D-32); `tests/test_cost_engine.py::test_client_with_no_activity_in_window_is_not_ranked`.
+- **Related decisions:** D-11
+
+## D-31: Optional direct-cost column on invoices
+- **ID:** D-31
+- **Date:** 2026-10-07
+- **Status:** Assumed
+- **Context:** Profit counted only staff time and late payment. In the Pemberton data, parts cost $1.9M of $3.9M revenue; without it every customer looked far more profitable than it was. Agencies have the same kind of cost: freelancers, ad spend, software or printing passed on to a client.
+- **Options considered:**
+  1. Leave it out and state the limit.
+  2. An optional `direct_cost` column on invoices (empty or not mapped counts as 0), subtracted in the invoice's month.
+  3. A separate expenses file per client.
+- **Decision:** Option 2, approved by the team lead on 2026-10-07 instead of trend lines (only one could be built before the feature freeze). Profit = revenue − direct cost − labour cost − late cost. In the worst case (D-16) an overdue invoice's revenue is removed but its direct cost stays. Recommendations count it in cost. The screen shows direct-cost columns and the explanation fact only when the data has any.
+- **Factors that led to it:** Smallest change that removes the biggest overstatement; most accounting exports can put a cost next to the invoice. Option 3 needs a new file, mapping and validation for one more table.
+- **Trade-offs accepted:** Costs not tied to an invoice cannot be entered. The word list for mapping it was written after seeing the Pemberton header `parts_cost` (it includes "parts cost"), so that header mapping is not a fair test. Trend lines per client are not built.
+- **Expected effect:** Clients with heavy pass-through costs no longer look profitable when they are not; data without the column gives the same results as before.
+- **Actual measured effect:** Pemberton with parts cost as direct cost: 12-month profit of ranked customers $672,268 on $2,175,281 revenue (31%), against $1,617,724 on $2,030,923 (80%) before (that earlier run also had the D-29 and D-30 issues). Seed 42 demo: ranked list and actions identical; the saved explanations still match because their facts are unchanged.
+- **Evidence:** the Pemberton check (2026-10-07; a scratch script joined the Pemberton files into our two input files and ran `pipeline.run_pipeline` and `recommend.recommend_actions`; nothing from it is committed, D-32); `tests/test_cost_engine.py` (`test_direct_cost_is_subtracted_in_invoice_month`, `test_missing_direct_cost_counts_as_zero`, `test_worst_case_keeps_direct_cost_of_overdue_invoice`), `tests/test_explain.py::test_direct_cost_fact_only_when_present`.
+- **Related decisions:** D-11, D-16, D-24, D-26, D-32
+
+## D-32: Outside synthetic dataset (Pemberton) used as a test only
+- **ID:** D-32
+- **Date:** 2026-10-07
+- **Status:** Assumed
+- **Context:** The team lead supplied `pemberton_mechanical_data.zip`: 18 months of a synthetic HVAC and plumbing contractor (407 customers, 14 technicians) built for a university course (its README: "Synthetic data built for BANA785 at RIT"). It is the first data not made by us.
+- **Options considered:**
+  1. Use it in the demo and the pitch as evidence of real-world accuracy.
+  2. Use it only as an outside test of mapping, validation and the cost engine; do not commit it (course material, licence unknown); keep the generated data for the demo.
+- **Decision:** Option 2. In the pitch it may be described only as "an independent synthetic dataset built for a university course", never as real data.
+- **Factors that led to it:** It is synthetic and from another industry, and its files had to be joined before our tool could read them. No customer loses money in it, so it does not show the product's main point.
+- **Trade-offs accepted:** Its findings are not in the repo's benchmark script and cannot be re-run by others.
+- **Expected effect:** An honest outside test that finds weaknesses our own data cannot.
+- **Actual measured effect:** First run, before any code change: column mapping matched 7 of 10 of its headers (missed `total_amount`, `tech_name`, `ticket_type`; `billable` was made by our join and is not counted). After D-31 added "parts cost" to the word list, `parts_cost` also maps (8 of 11; this later addition is not a fair test). Validation caught 22 labour rows without a technician (error) and 45 duplicate labour rows (warning); it missed late-dated payments until D-29. It exposed D-29, D-30 and D-31. 0 customers lose money at customer level; its losses sit inside customers (maintenance visits and callbacks cost about $80,000 of unbilled labour; 71 of 116 projects ran over 20% past quoted hours but stayed profitable), which a per-client tool does not show.
+- **Evidence:** the Pemberton check (2026-10-07; a scratch script joined the Pemberton files into our two input files and ran `pipeline.run_pipeline` and `recommend.recommend_actions`; nothing from it is committed, D-32).
+- **Related decisions:** D-19, D-29, D-30, D-31
 
 ---
 

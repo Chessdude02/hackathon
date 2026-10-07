@@ -36,6 +36,8 @@ def facts_for(rec, totals):
         "Suggested action": rec["action"],
         "Profit over the last 12 months": money(totals["profit_last_12m"]),
         "Revenue over the last 12 months": money(totals["revenue_last_12m"]),
+        **({"Direct costs over the last 12 months (not staff time)": money(totals["direct_cost_last_12m"])}
+           if totals.get("direct_cost_last_12m") else {}),
         "Profit over the last 3 months": money(rec["profit_3m"]),
         "Target margin": pct(rec["target_margin"]),
     }
