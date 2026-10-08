@@ -174,11 +174,12 @@ def test_payment_after_last_activity_is_flagged():
     from clientprofit.ingest import coerce_types
     from clientprofit.validate import validate_inputs
     inv = coerce_types(pd.DataFrame({"client": ["A", "A"], "invoice_date": ["2026-01-01", "2026-01-02"],
-                                     "amount": ["10", "10"], "paid_date": ["2026-01-02", "2099-01-01"]}),
+                                     "amount": ["10", "10"], "paid_date": ["2026-01-25", "2099-01-01"]}),
                        "invoices", "i.csv")
     te = coerce_types(pd.DataFrame({"client": ["A"], "staff": ["Ana"], "work_date": ["2026-01-03"],
                                     "hours": ["1"], "billable": ["yes"]}), "time_entries", "t.csv")
     checks = {p["check"]: p["rows"] for p in validate_inputs({"invoices": inv, "time_entries": te})}
+    # row 2 is paid 22 days after the last work date: ordinary, not flagged
     assert checks["paid_after_last_activity"] == [3] and checks["paid_in_future"] == [3]
     problems = validate_inputs({"invoices": inv, "time_entries": te})
     assert not any("direct_cost" in p["message"] for p in problems)  # unmapped direct cost is not a problem

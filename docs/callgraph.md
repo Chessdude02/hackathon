@@ -167,6 +167,7 @@ clientprofit.scope.store.LabelStore.__init__ -> clientprofit.scope.store.LabelSt
 clientprofit.scope.store.LabelStore.get -> clientprofit.scope.store.LabelStore.__init__
 clientprofit.scope.store.LabelStore.save -> clientprofit.scope.store.LabelStore.__init__
 clientprofit.validate._bad_values -> clientprofit.schema.SRC_ROW
+clientprofit.validate._bad_values -> clientprofit.validate.LATE_PAYMENT_GRACE_DAYS
 clientprofit.validate._bad_values -> clientprofit.validate.WARNING
 clientprofit.validate._bad_values -> clientprofit.validate._last_activity
 clientprofit.validate._bad_values -> clientprofit.validate._problem
@@ -205,4 +206,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-199 call edges.
+200 call edges.

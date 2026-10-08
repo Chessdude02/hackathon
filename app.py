@@ -432,9 +432,15 @@ def main():
             st.info("Upload invoices and time entries to start. Client requests and services are optional: "
                     "they add scope-creep signals but the ranking works without them.")
             return
-        if st.session_state.get("source") != "upload" or st.button("Reload files"):
+        # Read the files again whenever the set of uploads changes, so a file added after the first
+        # two (staff costs, requests, clients) is never silently ignored.
+        uploads = tuple((t, getattr(f, "file_id", None) or (f.name, f.size)) if f is not None else (t, None)
+                        for t, f in [*files.items(), ("staff_costs", staff_file)])
+        if (st.session_state.get("source") != "upload" or st.session_state.get("uploads") != uploads
+                or st.button("Reload files")):
             st.session_state.loaded, st.session_state.costs = load_uploads(files, staff_file)
-            st.session_state.source = "upload"
+            st.session_state.source, st.session_state.uploads = "upload", uploads
+            st.session_state.result = st.session_state.labels = None  # results were for the old files
 
     loaded = st.session_state.loaded
     st.header("1. Check the column mapping")

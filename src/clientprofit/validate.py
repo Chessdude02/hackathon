@@ -9,6 +9,7 @@ from clientprofit import schema
 from clientprofit.schema import SRC_ROW
 
 ERROR, WARNING, INFO = "error", "warning", "info"
+LATE_PAYMENT_GRACE_DAYS = 30  # a payment this long after the last invoice or work date is still ordinary
 
 
 def _problem(check, severity, table, rows, message, suggest_exclude=False):
@@ -66,15 +67,17 @@ def _bad_values(tables):
             if rows:
                 out.append(_problem("negative_direct_cost", WARNING, "invoices", rows,
                                     f"{len(rows)} invoice(s) with a negative direct cost"))
-        # D-29: payment dates do not set the as-of date, so one dated after all invoices and work
-        # (or after today) is probably a typo or an export taken later; show it.
+        # D-29: payment dates do not set the as-of date, so one dated well after all invoices and work
+        # (or after today) is probably a typo or an export taken much later; show it. Payments within
+        # LATE_PAYMENT_GRACE_DAYS of the last activity are ordinary (an invoice paid on its terms).
         last = _last_activity(tables)
         if last is not None:
-            rows = inv.loc[inv["paid_date"] > last, SRC_ROW].tolist()
+            rows = inv.loc[inv["paid_date"] > last + pd.Timedelta(days=LATE_PAYMENT_GRACE_DAYS), SRC_ROW].tolist()
             if rows:
                 out.append(_problem("paid_after_last_activity", WARNING, "invoices", rows,
-                                    f"{len(rows)} payment(s) dated after the last invoice or work date "
-                                    f"({last:%d %b %Y}). Check the dates; they still count as paid on that day"))
+                                    f"{len(rows)} payment(s) dated more than {LATE_PAYMENT_GRACE_DAYS} days after "
+                                    f"the last invoice or work date ({last:%d %b %Y}). Check the dates; they "
+                                    "still count as paid on that day"))
         rows = inv.loc[inv["paid_date"] > pd.Timestamp.today().normalize(), SRC_ROW].tolist()
         if rows:
             out.append(_problem("paid_in_future", WARNING, "invoices", rows,

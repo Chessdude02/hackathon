@@ -222,7 +222,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Client has hours but no invoices | validate | Keeps the client, flags it | Client shown as all cost, with a warning |
 | Client has under 3 months of data | cost_engine, forecast | Computes profit, skips forecast and ranking | Client listed under "Not ranked" with the reason |
 | Client has no invoices or hours in the last 12 months | cost_engine | Not ranked (D-30) | Client listed under "Not ranked" with the reason and its profit over all the data |
-| Payment dated after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
+| Payment dated more than 30 days (`LATE_PAYMENT_GRACE_DAYS`) after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
 | Browser tab kept open across an app update | app | A result made by older code (`result_version` differs from `RESULT_VERSION`) is dropped | A note to click "Rank clients" again |
 | More than 500 new request messages in one session | app | Keyword rule for all of them, no AI calls (D-35) | A warning explaining the public limit |
 | More than 25 new AI explanations in one session | app, explain | `write_explanation(..., allow_llm=False)`: saved texts still shown, otherwise fixed wording (D-35) | "Standard wording shown because this session reached its limit" |
@@ -367,7 +367,7 @@ hand-calculated files in `tests/fixtures/hand_calc/` exactly.
 | `apply_mapping(raw, mapping, table, src_file)` | `ingest.py` | Renames confirmed columns and types them; unmapped columns are ignored |
 | `client_key(name)` | `ingest.py` | Name used to match clients (D-19) |
 | `unify_client_names(tables)` | `ingest.py` | One display name per client; keeps `client_original`; returns the merges |
-| `validate_inputs(tables, settings=None, merged_names=None)` | `validate.py` | Problems with severity, table, `_src_row` numbers, message and `suggest_exclude`, including payments dated after the last invoice or work date or in the future (D-29) and negative direct costs. Changes nothing |
+| `validate_inputs(tables, settings=None, merged_names=None)` | `validate.py` | Problems with severity, table, `_src_row` numbers, message and `suggest_exclude`, including payments dated more than 30 days after the last invoice or work date, or in the future (D-29) and negative direct costs. Changes nothing |
 | `exclude_rows(tables, exclusions)` | `validate.py` | Removes only the rows the owner chose |
 | `has_errors(problems)`, `summary(problems)` | `validate.py` | Any error? / problems as a table |
 | `load_canonical(folder)` | `ingest.py` | Reads `invoices.csv`, `time_entries.csv`, `requests.csv` whose headers already match the schema |
@@ -420,7 +420,8 @@ figures, the rows behind each month (shown by `readable()`: plain column
 names, dates without times, money rounded to cents, labour cost including
 overhead), the client's labelled requests, and an
 explanation written on opening (D-26; a note says when standard wording was used instead). `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
-`tests/test_app.py`). A line at the top says the app is a demo and not for
+`tests/test_app.py`). Uploaded files are read again whenever the set of uploads changes, and earlier
+results are cleared, so a file added after the first two is never ignored. A line at the top says the app is a demo and not for
 confidential data (D-28). Security (D-35, `SECURITY.md`): AI labels and
 explanations for uploads are kept in session memory only (`session_store`,
 `LabelStore(None)`); per-session caps `MAX_LIVE_LABELS` = 500 and
