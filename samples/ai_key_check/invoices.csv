@@ -1,0 +1,13 @@
+Invoice #,Customer,Invoice Date,Amount,Date Paid
+T-001,Juniper Yoga Studio,2026-05-01,4200,2026-05-20
+T-002,Juniper Yoga Studio,2026-06-01,4200,2026-06-20
+T-003,Juniper Yoga Studio,2026-07-01,4200,2026-07-20
+T-004,Juniper Yoga Studio,2026-08-01,4200,2026-08-20
+T-005,Kestrel Bike Repair,2026-05-01,2600,2026-05-20
+T-006,Kestrel Bike Repair,2026-06-01,2600,2026-06-20
+T-007,Kestrel Bike Repair,2026-07-01,2600,2026-07-20
+T-008,Kestrel Bike Repair,2026-08-01,2600,2026-08-20
+T-009,Oakmont Dental Care,2026-05-01,5800,2026-05-20
+T-010,Oakmont Dental Care,2026-06-01,5800,2026-06-20
+T-011,Oakmont Dental Care,2026-07-01,5800,2026-07-20
+T-012,Oakmont Dental Care,2026-08-01,5800,2026-08-20

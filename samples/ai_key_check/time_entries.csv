@@ -1,0 +1,25 @@
+Client,Staff Member,Date,Hours,Billable
+Juniper Yoga Studio,Sam,2026-05-10,21.0,Yes
+Juniper Yoga Studio,Ria,2026-05-15,9.0,No
+Juniper Yoga Studio,Sam,2026-06-10,21.0,Yes
+Juniper Yoga Studio,Ria,2026-06-15,9.0,No
+Juniper Yoga Studio,Sam,2026-07-10,21.0,Yes
+Juniper Yoga Studio,Ria,2026-07-15,9.0,No
+Juniper Yoga Studio,Sam,2026-08-10,21.0,Yes
+Juniper Yoga Studio,Ria,2026-08-15,9.0,No
+Kestrel Bike Repair,Sam,2026-05-10,31.499999999999996,Yes
+Kestrel Bike Repair,Ria,2026-05-15,13.5,No
+Kestrel Bike Repair,Sam,2026-06-10,31.499999999999996,Yes
+Kestrel Bike Repair,Ria,2026-06-15,13.5,No
+Kestrel Bike Repair,Sam,2026-07-10,31.499999999999996,Yes
+Kestrel Bike Repair,Ria,2026-07-15,13.5,No
+Kestrel Bike Repair,Sam,2026-08-10,31.499999999999996,Yes
+Kestrel Bike Repair,Ria,2026-08-15,13.5,No
+Oakmont Dental Care,Sam,2026-05-10,28.0,Yes
+Oakmont Dental Care,Ria,2026-05-15,12.0,No
+Oakmont Dental Care,Sam,2026-06-10,28.0,Yes
+Oakmont Dental Care,Ria,2026-06-15,12.0,No
+Oakmont Dental Care,Sam,2026-07-10,28.0,Yes
+Oakmont Dental Care,Ria,2026-07-15,12.0,No
+Oakmont Dental Care,Sam,2026-08-10,28.0,Yes
+Oakmont Dental Care,Ria,2026-08-15,12.0,No
