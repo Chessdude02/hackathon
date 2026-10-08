@@ -141,3 +141,34 @@ def test_cut_scope_saves_staff_cost_not_overhead():
     r = run(client("Extra", 2000, 16, 8), settings=WITH_OVERHEAD).loc["Extra"]
     assert r["action"] == recommend.CUT
     assert r["dollar_effect_per_year"] == pytest.approx(4800)
+
+
+def _result(*clients, settings=SETTINGS):
+    inv = sum((c[0] for c in clients), [])
+    te = sum((c[1] for c in clients), [])
+    tables = {
+        "invoices": coerce_types(pd.DataFrame(inv, columns=["client", "invoice_date", "amount", "due_date",
+                                                            "paid_date"]).astype(str), "invoices", "i"),
+        "time_entries": coerce_types(pd.DataFrame(te, columns=["client", "staff", "work_date", "hours",
+                                                               "billable"]).astype(str), "time_entries", "t"),
+    }
+    return pipeline.run_pipeline(tables, settings)
+
+
+def test_trend_ends_at_the_margin_the_action_uses():
+    """D-37: the chart's last point is the same 3-month margin the suggested action is based on."""
+    result = _result(client("Low", 1000, 16, 0, revenue_by_month=[1000, 1000, 1000, 1000, 1200, 1400]))
+    hist = recommend.margin_history(result, "Low")
+    rec = recommend.recommend_actions(result, SETTINGS).set_index("client").loc["Low"]
+    assert len(hist) == 4 and hist["margin"].iloc[-1] == pytest.approx(rec["margin_3m"])
+
+
+def test_margin_after_action_is_what_the_action_aims_at():
+    """D-37: raise price -> the target; cut scope -> the margin without the unbilled work; keep -> unchanged."""
+    r = run(client("Low", 1000, 16, 0), client("Extra", 2000, 16, 8, ), client("Fine", 3000, 10, 0),
+            settings={**SETTINGS, "overhead_multiplier": 1.5})
+    assert r.loc["Low", "action"] == recommend.RAISE and r.loc["Low", "margin_after_action"] == pytest.approx(0.30)
+    assert r.loc["Extra", "action"] == recommend.CUT
+    assert r.loc["Extra", "margin_after_action"] == pytest.approx((2000 - 16 * 50 * 1.5) / 2000)
+    assert r.loc["Fine", "action"] == recommend.KEEP
+    assert r.loc["Fine", "margin_after_action"] == pytest.approx(r.loc["Fine", "margin_3m"])

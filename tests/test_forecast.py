@@ -81,13 +81,3 @@ def test_direct_cost_lowers_feature_margin():
     r["client_month"]["direct_cost"] = 100.0
     f = build_features(r)
     assert f.iloc[2]["margin_3m"] == pytest.approx((3000 - 1800 - 300) / 3000)
-
-
-def test_outlook_gives_baseline_forecast_and_measured_error():
-    from clientprofit.forecast.outlook import client_outlook
-    settings = {"forecast": {"model": "baseline", "horizon_months": 3, "test_months": 6}}
-    _, out = client_outlook(fake_result(months=24, clients=tuple("ABCDEFGH")), settings)
-    assert out["A"]["forecast"] == pytest.approx(0.4)          # last 3 months' margin carried forward
-    assert out["A"]["typical_error"] == pytest.approx(0.0)     # flat data: the rule is never wrong
-    _, short = client_outlook(fake_result(months=8), settings)
-    assert short["A"]["typical_error"] is None                 # too few past forecasts to measure

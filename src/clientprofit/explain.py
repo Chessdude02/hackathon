@@ -101,6 +101,16 @@ def check_numbers(text, facts):
     return bad
 
 
+MIN_WORDS = 8  # real explanations had 29 or more words on 2026-10-08
+REPEATED = re.compile(r"(.)\1{5,}")  # the same character 6 or more times in a row, e.g. "!!!!!!"
+
+
+def looks_broken(text):
+    """D-38: the LLM sometimes returns garbage such as "Green!!!!!!!!..." with no numbers at all, which the
+    number check cannot catch. Reject text with a long run of one character or too few real words."""
+    return bool(REPEATED.search(text)) or len(re.findall(r"[A-Za-z]{2,}", text)) < MIN_WORDS
+
+
 def template_text(rec):
     """Fixed wording from the recommendation's own reason (all numbers from code)."""
     text = f"Suggested action for {rec['client']}: {rec['action']}. {rec['why']}"
@@ -120,14 +130,20 @@ def write_explanation(rec, totals, model, provider="featherless", store=None, al
     store = store if store is not None else LabelStore(EXPLANATIONS_PATH)
     key = label_key(prompt_for(facts), "", model, PROMPT_VERSION)
     saved = store.get(key)
-    if saved:
+    if saved and not looks_broken(saved):  # D-38: a broken text saved earlier is never shown
         return {"text": saved, "source": "saved", "invented": []}
     if not allow_llm:
         return {"text": template_text(rec), "source": "template", "invented": [], "capped": True}
     try:
         text = complete(prompt_for(facts), model, provider, system=SYSTEM, max_tokens=180).strip()
+        if looks_broken(text):  # D-38: one retry with a little randomness, else the same garbage comes back
+            text = complete(prompt_for(facts), model, provider, system=SYSTEM, max_tokens=180,
+                            temperature=0.4).strip()
     except Exception:  # provider down or anything else: never block the screen
         return {"text": template_text(rec), "source": "template", "invented": [], "error": True}
+    if looks_broken(text):
+        return {"text": template_text(rec), "source": "template", "invented": [], "broken": True,
+                "rejected": text}
     invented = check_numbers(text, facts)
     if invented or not text:
         return {"text": template_text(rec), "source": "template", "invented": invented, "rejected": text}

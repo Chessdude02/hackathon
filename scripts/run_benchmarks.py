@@ -172,7 +172,8 @@ def bench6(result, labels):
         out = explain.write_explanation(rec, totals.loc[rec["client"]].to_dict(), cfg["llm"]["model"], store=store)
         shown_bad = explain.check_numbers(out["text"], explain.facts_for(rec, totals.loc[rec["client"]].to_dict()))
         rows.append({"source": out["source"], "invented": out["invented"], "error": bool(out.get("error")),
-                     "shown_invented": shown_bad})
+                     "broken": bool(out.get("broken")), "shown_invented": shown_bad,
+                     "shown_broken": explain.looks_broken(out["text"])})
     seconds = time.perf_counter() - t0
     if tmp.exists():  # keep the passing texts so the demo does not wait for them
         saved = LabelStore(explain.EXPLANATIONS_PATH)
@@ -187,6 +188,8 @@ def bench6(result, labels):
             "invented_numbers_caught": sum(len(r["invented"]) for r in llm_texts),
             "examples_caught": [r["invented"] for r in llm_texts if r["invented"]][:5],
             "provider_errors": sum(r["error"] for r in rows),
+            "broken_texts_rejected": sum(r["broken"] for r in rows),
+            "shown_texts_broken": sum(r["shown_broken"] for r in rows),
             "shown_texts_with_invented_numbers": sum(bool(r["shown_invented"]) for r in rows),
             "seconds": round(seconds, 1),
             "note": ("Target: zero invented numbers in shown texts. A text with an invented number is replaced by "

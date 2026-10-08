@@ -28,11 +28,13 @@ clientprofit.explain.check_numbers -> clientprofit.explain._value
 clientprofit.explain.check_numbers -> clientprofit.explain.allowed_numbers
 clientprofit.explain.facts_for -> clientprofit.explain.money
 clientprofit.explain.facts_for -> clientprofit.explain.pct
+clientprofit.explain.looks_broken -> clientprofit.explain.MIN_WORDS
 clientprofit.explain.write_explanation -> clientprofit.explain.EXPLANATIONS_PATH
 clientprofit.explain.write_explanation -> clientprofit.explain.PROMPT_VERSION
 clientprofit.explain.write_explanation -> clientprofit.explain.SYSTEM
 clientprofit.explain.write_explanation -> clientprofit.explain.check_numbers
 clientprofit.explain.write_explanation -> clientprofit.explain.facts_for
+clientprofit.explain.write_explanation -> clientprofit.explain.looks_broken
 clientprofit.explain.write_explanation -> clientprofit.explain.prompt_for
 clientprofit.explain.write_explanation -> clientprofit.explain.template_text
 clientprofit.explain.write_explanation -> clientprofit.llm.complete
@@ -53,11 +55,6 @@ clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.feat
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.forecast.lightgbm_model.ROUNDS
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.importance -> clientprofit.features.FEATURES
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.predict -> clientprofit.features.FEATURES
-clientprofit.forecast.outlook.client_outlook -> clientprofit.features.build_features
-clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.evaluate.evaluate
-clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.evaluate.time_split
-clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.outlook.MIN_TEST_ROWS
-clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.registry.get_forecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.baseline.BaselineForecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster.__init__
@@ -206,4 +203,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-200 call edges.
+197 call edges.

@@ -45,9 +45,11 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-31 | 2026-10-07 | Optional direct-cost column on invoices | Confirmed | Yes (Pemberton check) |
 | D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Confirmed | Yes (Pemberton check) |
 | D-33 | 2026-10-07 | Benchmark 8 and a re-run on unseen seeds 101-105 | Assumed | Yes (unseen seeds) |
-| D-34 | 2026-10-08 | Show the forecast on the screen as a trend chart with its measured error | Assumed | Yes (seed 42) |
+| D-34 | 2026-10-08 | Show the forecast on the screen as a trend chart with its measured error | Superseded by D-37 | Yes (seed 42) |
 | D-35 | 2026-10-08 | Security for the public app: AI spending caps, no visitor data on disk, upload limit, escaping, pinned versions | Assumed | Partly (tests, local check) |
 | D-36 | 2026-10-08 | Separate contribution from shared overhead; real overhead rate; "end" and "cut" use contribution | Assumed | Yes (seed 42, 8 seeds) |
+| D-37 | 2026-10-08 | Replace the on-screen forecast with "if nothing changes" vs "after the suggested action" | Assumed | Partly (tests, screenshot) |
+| D-38 | 2026-10-08 | Reject broken LLM explanations (garbage without numbers); retry once | Assumed | Yes (benchmark 6) |
 
 ---
 
@@ -665,7 +667,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-34: Show the forecast on the screen as a trend chart with its measured error
 - **ID:** D-34
 - **Date:** 2026-10-08
-- **Status:** Assumed
+- **Status:** Superseded by D-37
 - **Context:** The forecast (D-06, D-21) was built and benchmarked but never shown, so the product description's "forecast" was not visible to a user. The forecast that ships is the baseline (last 3 months' margin carried forward), so a single number would only repeat what the screen already shows. The forecast features also ignored direct costs (D-31).
 - **Options considered:**
   1. Leave the forecast off the screen and drop it from the description.
@@ -712,6 +714,40 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Seed 42 (multiplier 1.3, as before): profit and the ranking unchanged (benchmark 1 still exact); actions before: 19 keep, 14 cut scope, 9 raise price, 6 end; after: 19 keep, 19 cut scope, 10 raise price, 0 end. The 6 former "end" clients: 5 now cut scope (for example Tidewater Academy: contribution −$5,127 in the last 3 months, cutting $6,594 of unbilled staff cost a quarter turns it positive; effect $26,377 a year instead of $54,502), 1 raise price (Quarry Outdoors, contribution positive). Lakeshore Clinic stays cut scope; its effect falls from $68,129 to $52,407 a year (staff cost only). Ranked clients, last 12 months: contribution $963,246 − overhead $765,394 = profit $197,852. Benchmark 8: active loss-makers given an action 15/15 (seed 42), 49/49 (seeds 101 to 105); healthy clients never told cut or end 10/10, 66/66; "end" suggestions: 0 on seed 42 and on seeds 101 to 105, 1 on seed 2 (a planted loss-maker). Benchmark 6: 48 explanations written again, 0 with an invented number.
 - **Evidence:** `python scripts/run_benchmarks.py` and `python scripts/run_benchmarks.py --seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json`, 2026-10-08; `scripts/run_pipeline.py --exclude-suggested` before and after; tests `test_yearly_overhead_becomes_a_rate_per_logged_hour`, `test_multiplier_used_when_no_yearly_overhead`, `test_never_end_a_client_that_covers_its_own_costs`, `test_end_saves_only_the_clients_own_costs`, `test_cut_scope_saves_staff_cost_not_overhead`; screenshot of the local app.
 - **Related decisions:** D-11, D-16, D-24, D-26, D-31, D-33
+
+## D-37: Replace the on-screen forecast with "if nothing changes" vs "after the suggested action"
+- **ID:** D-37
+- **Date:** 2026-10-08
+- **Status:** Assumed
+- **Context:** The team lead found the forecast chart (D-34) did not make sense. The forecast that ships is the last 3 months carried forward, so its point always sat level with the end of the line; its range (±14 points) was too wide to help; it was not linked to the suggested action; and its margin left out late-payment cost, so it did not match the table.
+- **Options considered:**
+  1. Keep D-34.
+  2. Drop the forecast point and keep only the trend.
+  3. A trend-line forecast extending the recent slope.
+  4. Option 2 plus two points for next quarter: if nothing changes (the current 3-month margin) and after the suggested action (what the action aims at: the target for a price rise, the margin without the unbilled work for a cut).
+- **Decision:** Option 4 ("A + C"), approved by the team lead on 2026-10-08. The trend uses the same margin as the actions (after direct, labour, overhead and late cost). The caption says these are not predictions and why. `forecast/outlook.py` is removed; the forecasters stay for benchmark 3.
+- **Factors that led to it:** Benchmark 3 showed no model beats "no change" (D-06), so showing a forecast implied knowledge the tool does not have. The effect of the suggested action is computed, not guessed, and ties the chart to the decision.
+- **Trade-offs accepted:** The "after" point assumes the same workload and that the client accepts the change, like the dollar effect. Option 3 was rejected because a slope on noisy months would look precise and be less accurate than "no change".
+- **Expected effect:** The chart answers "where is this client heading, and what would the suggested action change?"
+- **Actual measured effect:** Tests: the trend's last point equals the margin the action uses (`test_trend_ends_at_the_margin_the_action_uses`); "after" equals the target for a price rise and the no-unbilled-work margin for a cut (`test_margin_after_action_is_what_the_action_aims_at`). Unseen data, 2026-10-08: on seeds 101 to 105 (238 ranked clients) the trend ends at the action's margin for every client, every "raise price" shows the target, no "cut scope" shows a lower margin than now, no errors; on the Pemberton (264 clients) and bakehouse (80 clients) data, the same holds with no errors.
+- **Evidence:** The tests above and `tests/test_app.py::test_client_detail_shows_margin_trend_and_action_effect`, 2026-10-08; screenshot of the local app.
+- **Related decisions:** D-06, D-21, D-34, D-36
+
+## D-38: Reject broken LLM explanations (garbage without numbers); retry once
+- **ID:** D-38
+- **Date:** 2026-10-08
+- **Status:** Assumed
+- **Context:** A screenshot taken while building D-37 showed the explanation "Green!!!!!!!!!..." for Greenleaf. 8 of the 97 saved explanations, all written when explanations were regenerated for D-36, were the client's first word followed by many "!". They contain no numbers, so the number check (D-26) passed them, and they were on the live app.
+- **Options considered:**
+  1. Remove the 8 texts by hand.
+  2. A quality check in code: reject text with a run of 6 or more of one character or fewer than 8 words; retry once with temperature 0.4 (a retry at temperature 0 repeats the same reply); else show the fixed wording; never save a rejected text; never show a broken text that was saved earlier; count rejected and shown broken texts in benchmark 6.
+- **Decision:** Option 2, and the 8 texts were removed and all 48 regenerated.
+- **Factors that led to it:** The number check proves numbers are not invented; it says nothing about whether the text is text. Removing by hand would not stop it happening on an upload.
+- **Trade-offs accepted:** The check catches garbage, not wrong or misleading wording. 8 words is far below real explanations (29 or more on 2026-10-08), so short but real replies are unlikely to be rejected.
+- **Expected effect:** No broken explanation is saved or shown.
+- **Actual measured effect:** Before: 8 of 97 saved texts broken. After regenerating with the check (`python scripts/run_benchmarks.py`, 2026-10-08): 48 texts written, 0 rejected as broken, 0 with invented numbers, 0 shown broken; 48 of 48 demo clients have a clean saved text (shortest 40 words); 0 broken texts left in the file. Unseen seed 104, 15 clients (5 per action present), written fresh and not saved: 15 by the LLM, 0 first replies broken, 0 invented numbers, shortest 41 words. The garbage replies are intermittent, so the check could not be exercised live on unseen data; the tests cover it with a fake provider.
+- **Evidence:** `out/benchmarks.json` section 6 (2026-10-08), the scan of `labels/saved_explanations.json`, `tests/test_explain.py` (`test_looks_broken`, `test_broken_reply_is_retried_then_replaced_and_never_saved`, `test_broken_text_already_saved_is_not_shown`).
+- **Related decisions:** D-26, D-36
 
 ---
 

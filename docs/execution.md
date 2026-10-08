@@ -228,7 +228,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | More than 25 new AI explanations in one session | app, explain | `write_explanation(..., allow_llm=False)`: saved texts still shown, otherwise fixed wording (D-35) | "Standard wording shown because this session reached its limit" |
 | Upload larger than 20 MB | Streamlit | Refused before the app sees it (`.streamlit/config.toml`, D-35) | Streamlit's file-too-large message |
 | No direct-cost column | ingest, cost_engine | Direct cost counts as 0 (D-31) | No direct-cost columns on the screen |
-| Too little history to measure the forecast's error | forecast | `typical_error` is None (D-34) | The forecast without a range, and a note saying so |
+| The LLM returns garbage with no numbers (e.g. "Green!!!!!!") | explain | `looks_broken`: one retry with temperature 0.4, then fixed wording; never saved, and a broken saved text is never shown (D-38) | Fixed wording |
 | LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |
 | More than 200 new messages to label | app | Does not start labelling | The expected time and a "Label them now" button |
 | No requests file | app | Skips labelling | A note that scope-creep signals are off; ranking and actions still shown |
@@ -415,7 +415,7 @@ to a loss" (D-24), a time-log warning, a note explaining contribution and overhe
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, a margin
-trend chart with next quarter's forecast and its typical error (D-34), monthly
+trend chart: the client's 3-month margin over time, the target, and next quarter if nothing changes and after the suggested action (`trend_box`, D-37), monthly
 figures, the rows behind each month (shown by `readable()`: plain column
 names, dates without times, money rounded to cents, labour cost including
 overhead), the client's labelled requests, and an
@@ -458,12 +458,11 @@ made from it.
 | `LightGBMForecaster` | `forecast/lightgbm_model.py` | Predicts the change from `margin_3m` with LightGBM's own API |
 | `get_forecaster(name, seed=42)` | `forecast/registry.py` | `baseline` or `lightgbm` |
 | `time_split(features, test_months=6, horizon=3)`, `evaluate(...)`, `mae(...)` | `forecast/evaluate.py` | Benchmark 3 split and score |
-| `client_outlook(result, settings)` | `forecast/outlook.py` | Features, plus per client the `forecast.model` forecast of next quarter's margin and its typical error (mean absolute error with the benchmark 3 split on the loaded data; none below `MIN_TEST_ROWS` = 20 past forecasts) (D-34) |
 
 Gate result (D-06, D-21): the baseline wins, so `forecast.model` is `baseline`.
-The screen shows it in client detail (`outlook_box` in `app.py`): the client's 3-month margin over
-time, the target as a dashed line, and next quarter's forecast with a bar of ± the typical error.
-On seed 42 the typical error is 0.143 from 170 past forecasts, the same as benchmark 3 (D-34).
+The forecast is not shown on the screen (D-37, which replaces D-34): no model beat "the next
+quarter looks like the last one", so client detail shows the margin trend and the effect of the
+suggested action instead (section 19). The forecast code is used by benchmark 3 only.
 
 ## 17. Request labelling (Verified on 2026-10-06)
 
@@ -506,6 +505,9 @@ only script that reads the truth file.
 |---|---|---|
 | `recommend_actions(result, settings, labels=None)` | `recommend.py` | One row per ranked client: `action`, `dollar_effect_per_year`, `why`, `alternative` (always set for "end the contract"), `heading_to_loss`, and the figures behind them (3-month revenue, cost, profit, contribution, margin, price rise needed, unbilled share and cost, extra-request share, margin trend) |
 | `price_rise_needed(revenue, cost, target)` | `recommend.py` | Rise so that (new revenue − cost) / new revenue = target |
+| `margin_history(result, client, months=3)` | `recommend.py` | The client's margin over each rolling 3-month window up to the as-of month, same definition as the actions (D-37) |
+
+Each row also has `margin_after_action`: the target for "raise price", the margin without the unbilled work for "cut scope", the current margin for "keep", none for "end" (D-37). It is what the action aims at, not a prediction.
 
 Rules and thresholds: D-36 (which replaces D-24) and the constants at the top of `recommend.py`.
 "End the contract" and the dollar effects of "end" and "cut scope" use contribution (before
@@ -519,6 +521,7 @@ The screen and `scripts/run_pipeline.py` both use it.
 | `facts_for(rec, totals)` | `explain.py` | The facts an explanation may use, every number formatted by code, plus the recommendation's reason and alternative |
 | `write_explanation(rec, totals, model, provider="featherless", store=None)` | `explain.py` | Saved text if any; else asks the LLM (`SYSTEM`, `prompt_for`), checks it, and saves it if it passes. Returns `source` `saved`, `llm` or `template` |
 | `check_numbers(text, facts)`, `allowed_numbers(facts)` | `explain.py` | Numbers in the text that are not in the facts (3 and 12 always allowed; signs ignored) |
+| `looks_broken(text)` | `explain.py` | True for a run of 6 or more of one character or fewer than `MIN_WORDS` = 8 words (D-38) |
 | `template_text(rec)` | `explain.py` | Fixed wording from the recommendation, shown when the check fails or the LLM is unavailable |
 
 Saved explanations: `labels/saved_explanations.json`, keyed like saved labels

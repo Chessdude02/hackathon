@@ -15,7 +15,6 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(1, str(ROOT))  # for generator/, used only to build missing demo data (D-28)
 
 from clientprofit import config, explain, ingest, pipeline, recommend, schema, validate  # noqa: E402
-from clientprofit.forecast.outlook import client_outlook  # noqa: E402
 from clientprofit.scope.registry import get_detector, services_by_client  # noqa: E402
 from clientprofit.scope.store import LabelStore  # noqa: E402
 
@@ -312,53 +311,52 @@ def session_store(kind):
     return st.session_state[key]
 
 
-def outlook_box(result, client, settings):
-    """3-month margin over time, the target, and next quarter's forecast with its typical error (D-34)."""
-    if st.session_state.get("outlook_for") is not id(result):
-        st.session_state.outlook = client_outlook(result, settings)
-        st.session_state.outlook_for = id(result)
-    features, out = st.session_state.outlook
-    hist = features[(features["client"] == client) & features["margin_3m"].notna()]
-    o = out.get(client, {})
-    if hist.empty or o.get("forecast") is None:
+def trend_box(result, rec, settings):
+    """D-37: the client's 3-month margin over time, the target, and next quarter two ways: if nothing
+    changes, and after the suggested action. Both come from computed figures; nothing is predicted."""
+    hist = recommend.margin_history(result, rec["client"])
+    if hist.empty:
         return
-    st.markdown("**Margin trend and next quarter**")
-    rows = [{"date": m.end_time.strftime("%Y-%m-01"), "margin": v, "series": "Margin, last 3 months"}
-            for m, v in zip(hist["month"], hist["margin_3m"])]
-    nxt = (hist["month"].max() + 2).end_time.strftime("%Y-%m-01")  # middle of next quarter
-    err, f = o["typical_error"], o["forecast"]
-    point = {"date": nxt, "margin": f, "series": "Next quarter (forecast)",
-             "low": f - err if err is not None else f, "high": f + err if err is not None else f}
+    st.markdown("**Margin trend and the effect of the suggested action**")
     target = settings["target_margin"]
-    names = ["Margin, last 3 months", "Next quarter (forecast)"]
+    names = ["Margin, last 3 months", "Next quarter if nothing changes", "Next quarter after the suggested action"]
+    rows = [{"date": m.end_time.strftime("%Y-%m-01"), "margin": v, "series": names[0]}
+            for m, v in zip(hist["month"], hist["margin"])]
+    nxt = (hist["month"].max() + 2).end_time.strftime("%Y-%m-01")  # middle of next quarter
+    now, after = rec.get("margin_3m"), rec.get("margin_after_action")
+    points = []
+    if now is not None and now == now:
+        points.append({"date": nxt, "margin": now, "series": names[1]})
+    if after is not None and after == after and rec["action"] != recommend.KEEP:
+        points.append({"date": nxt, "margin": after, "series": names[2]})
     color = {"field": "series", "type": "nominal", "title": None,
-             "scale": {"domain": names, "range": ["#1f77b4", "#e4572e"]}}
-    link = [rows[-1] | {"series": names[1]}, point]
+             "scale": {"domain": names, "range": ["#1f77b4", "#9e9e9e", "#2ca02c"]}}
     x = {"field": "date", "type": "temporal", "title": None, "axis": {"format": "%b %Y"}}
+    y = {"field": "margin", "type": "quantitative", "axis": {"format": "%"}, "title": "Margin"}
     st.vega_lite_chart({
         "height": 260,
         "layer": [
             {"data": {"values": rows}, "mark": {"type": "line", "point": True},
-             "encoding": {"x": x,
-                          "y": {"field": "margin", "type": "quantitative", "axis": {"format": "%"}, "title": "Margin"},
-                          "color": color}},
-            {"data": {"values": link}, "mark": {"type": "line", "strokeDash": [3, 3]},
-             "encoding": {"x": x, "y": {"field": "margin", "type": "quantitative"}, "color": color}},
-            {"data": {"values": [point]}, "mark": {"type": "rule", "strokeWidth": 8, "opacity": 0.3},
-             "encoding": {"x": x, "y": {"field": "low", "type": "quantitative"},
-                          "y2": {"field": "high"}, "color": color}},
-            {"data": {"values": [point]}, "mark": {"type": "point", "filled": True, "size": 120},
-             "encoding": {"x": x, "y": {"field": "margin", "type": "quantitative"}, "color": color}},
+             "encoding": {"x": x, "y": y, "color": color}},
+            {"data": {"values": points}, "mark": {"type": "point", "filled": True, "size": 140},
+             "encoding": {"x": x, "y": y, "color": color}},
             {"data": {"values": [{"t": target}]}, "mark": {"type": "rule", "strokeDash": [4, 4], "color": "gray"},
              "encoding": {"y": {"field": "t", "type": "quantitative"}}},
         ]}, width="stretch")
-    range_text = (f" On your data, this simple rule was off by {err:.0%} points on average over the last "
-                  f"{settings['forecast']['test_months']} months, so read it as {f - err:.0%} to {f + err:.0%}."
-                  if err is not None else " There is not enough history yet to say how far off it usually is.")
-    st.caption(f"Grey dashed line: your {target:.0%} target. Next quarter, if nothing changes: about {f:.0%} "
-               f"margin (the last 3 months carried forward; margin here leaves out late-payment cost)."
-               + range_text + " A machine-learning forecast was tested and was less accurate (D-06), so this "
-               "simple rule is used.")
+    if rec["action"] == recommend.KEEP:
+        effect = "No change suggested, so the margin stays where it is."
+    elif rec["action"] == recommend.END:
+        effect = ("If the contract ends there is no next quarter for this client; the money saved is the "
+                  "effect per year shown above.")
+    elif after is not None and after == after:
+        effect = f"After the suggested action ({rec['action']}): about {after:.0%}."
+    else:
+        effect = ""
+    st.caption(f"Grey dashed line: your {target:.0%} target. Next quarter if nothing changes: "
+               + (f"{now:.0%} (the last 3 months). " if now is not None and now == now else "no revenue to compare. ")
+               + effect + " These are not predictions: we tested forecasting models and none beat "
+               "'the next quarter looks like the last one' (D-06), so the chart shows the trend and what "
+               "the suggested action would change, at the current workload.")
 
 
 def client_detail(result, recs, labels, cfg):
@@ -369,7 +367,7 @@ def client_detail(result, recs, labels, cfg):
         recommendation_box(rec.iloc[0].to_dict())
         totals = result["totals"].set_index("client").loc[client].to_dict()
         explanation_box(rec.iloc[0].to_dict(), totals, cfg)
-        outlook_box(result, client, cfg)
+        trend_box(result, rec.iloc[0].to_dict(), cfg)
     else:
         reason = result["unranked"].set_index("client").loc[client, "not_ranked_because"]
         st.info(f"Not ranked and no action suggested: {reason}.")

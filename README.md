@@ -70,10 +70,11 @@ Diagram: `docs/architecture.md`. In short:
    price rise needed is over 50%. "End" and "cut scope" savings never count
    shared overhead, because it stays when a client goes; "raise price" aims to
    cover it.
-6. **Forecast:** each client's margin trend with next quarter's margin, shown
-   as a range: the typical error is measured on the owner's own data. The
-   forecast is "last 3 months carried forward", because a LightGBM model was
-   less accurate in every test.
+6. **Trend, not a forecast:** each client's margin over time, with next
+   quarter "if nothing changes" and "after the suggested action". We tested
+   forecasting (a LightGBM model against "the next quarter looks like the
+   last one") and nothing beat "no change", so the app does not pretend to
+   predict.
 7. **LLM (Featherless, Qwen 2.5 14B), two jobs only:** label client requests
    (in scope / extra unpaid / unclear) and write the explanation sentences.
    The LLM never does arithmetic. Code formats every number; a check rejects

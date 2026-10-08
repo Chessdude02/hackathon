@@ -67,7 +67,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **Worst-case profit** | For each client, also shows profit if invoices more than 90 days overdue are never paid. | Built |
 | **Request labeller** | Labels each client message as routine work, extra unpaid work, or unclear, using an AI model (Featherless, Qwen 2.5 14B) and the client's list of services. Saves every label so the same message is never sent twice. Shown as a suggestion to review. | Built |
 | **Keyword baseline** | A simple word-rule labeller used as the comparison and as the fallback if the AI fails. | Built |
-| **Forecast** | Predicts next quarter's margin per client. A LightGBM model was tested against "next quarter equals last quarter" and lost, so the simple rule ships. | Built; shown on the screen since 2026-10-08 as a trend chart with a range (D-34) |
+| **Forecast** | Predicts next quarter's margin per client. A LightGBM model was tested against "next quarter equals last quarter" and lost, so the simple rule ships. | Built and benchmarked; not shown on the screen, because no model beat "no change" (D-37) |
 | **Recommendations** | One action per client (keep, raise price, cut scope, end the contract) with its dollar effect a year, the reason, and for "end" always an alternative. Rules on the last 3 months; "end" only as a last resort. | Built |
 | **Loss warnings** | Flags clients profitable over the year but heading toward a loss now. | Built |
 | **Explanations** | Two or three plain sentences per client, written by the AI using only numbers our code computed. An automatic check rejects any text with a number not in the figures and shows standard wording instead. | Built: 0 invented numbers in 48 texts |
@@ -80,7 +80,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 
 | Part | What it will do |
 |---|---|
-| **Forecast on the screen** | Dropped on 2026-10-07 for direct costs (D-31), then **built on 2026-10-08** (D-34): per-client margin trend with next quarter's forecast and its typical error. |
+| **Forecast on the screen** | Dropped on 2026-10-07 for direct costs (D-31), then built on 2026-10-08 (D-34) and **replaced the same day** (D-37) by a margin trend chart with next quarter "if nothing changes" vs "after the suggested action": a forecast that only repeats the last quarter told the owner nothing. |
 | **Services table on the settings screen** | Type each client's services in the app instead of uploading a file. |
 | **Deployment** | Done: https://hackathon-qiv6graw7ewfv6lqndywtd.streamlit.app/ (D-28). |
 | **Direct costs** | Built on 2026-10-07: an optional cost column on invoices (freelancers, ad spend, materials), subtracted from profit (D-31). |

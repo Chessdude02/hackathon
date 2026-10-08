@@ -64,6 +64,20 @@ def _latest_trend(result):
     return last[["margin_3m", "margin_trend"]].to_dict("index")
 
 
+def margin_history(result, client, months=MONTHS):
+    """D-37: the client's margin over each rolling `months`-month window up to the as-of month, with the
+    same definition as the suggested actions: (revenue - direct - labour - late cost) / revenue.
+    Windows without revenue are left out."""
+    cm = result["client_month"]
+    g = cm[cm["client"] == client].set_index("month")[["revenue", "profit"]]
+    if g.empty:
+        return pd.DataFrame(columns=["month", "margin"])
+    grid = pd.period_range(g.index.min(), pd.Period(result["as_of"], "M"), freq="M")
+    roll = g.reindex(grid, fill_value=0.0).rolling(months, min_periods=months).sum()
+    roll = roll[roll["revenue"] > 0]
+    return pd.DataFrame({"month": roll.index, "margin": (roll["profit"] / roll["revenue"]).to_numpy()})
+
+
 def price_rise_needed(revenue, cost, target):
     """Fractional price rise so that (new revenue - cost) / new revenue = target. None if no revenue."""
     if revenue <= 0:
@@ -143,6 +157,10 @@ def recommend_actions(result, settings, labels=None):
             "revenue_3m": round(rev, 2), "cost_3m": round(cost, 2), "profit_3m": round(profit_3m, 2),
             "contribution_3m": round(contribution_3m, 2),
             "margin_3m": margin_3m, "target_margin": target,
+            # D-37: the margin the action itself aims at (not a prediction): the target after a price
+            # rise, the margin without the unbilled work after a cut, unchanged when kept, none when ended.
+            "margin_after_action": (target if action == RAISE else cut_margin if action == CUT and rev > 0
+                                    else margin_3m if action == KEEP else None),
             "price_rise_needed": rise, "price_rise_dollars_per_year": rise_dollars,
             "unbilled_share_3m": unbilled_share, "unbilled_cost_per_year": round(cut_saving, 2),
             "extra_request_share_3m": extra_share, "margin_trend": t.get("margin_trend"),

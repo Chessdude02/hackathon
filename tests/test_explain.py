@@ -68,7 +68,7 @@ def test_good_text_is_used_and_saved(fake, tmp_path):
 
 
 def test_invented_number_is_replaced_by_template(fake, tmp_path):
-    fake.reply = "Raise the price by 18% to earn $12,345 more."
+    fake.reply = "Studio 54 should raise the price by 18% to earn $12,345 more each year from this client."
     out = explain.write_explanation(REC, TOTALS, "m", store=LabelStore(tmp_path / "e.json"))
     assert out["source"] == "template" and out["invented"] == ["18%", "$12,345"]
     assert out["text"].startswith("Suggested action for Studio 54: raise price.")
@@ -104,7 +104,7 @@ def test_no_new_llm_call_when_not_allowed(fake, tmp_path):
     store = LabelStore(tmp_path / "e.json")
     out = explain.write_explanation(REC, TOTALS, "m", store=store, allow_llm=False)
     assert out["source"] == "template" and out["capped"]
-    fake.reply = "Margin was 20%, below the 30% target."
+    fake.reply = "Margin was 20%, below the 30% target, so the suggested action is to raise the price."
     explain.write_explanation(REC, TOTALS, "m", store=store)
     assert explain.write_explanation(REC, TOTALS, "m", store=store, allow_llm=False)["source"] == "saved"
 
@@ -116,3 +116,30 @@ def test_memory_store_never_writes_to_disk(tmp_path, monkeypatch):
     store.put("k", "text")
     store.save()
     assert store.get("k") == "text" and list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("text,broken", [
+    ("Green!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", True),       # seen from the LLM on 2026-10-08
+    ("Z!!!!!!!!!", True),
+    ("Profit was $12,000.", True),                                   # too short to explain anything
+    ("Studio 54 earns $12,000 a year on $50,000 of revenue, a margin of 20% against the 30% target, "
+     "so a 15% price rise is suggested.", False),
+])
+def test_looks_broken(text, broken):
+    assert explain.looks_broken(text) is broken
+
+
+def test_broken_reply_is_retried_then_replaced_and_never_saved(fake, tmp_path):
+    """D-38: garbage with no numbers passes the number check, so it is caught separately."""
+    fake.reply = "Studio!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    store = LabelStore(tmp_path / "e.json")
+    out = explain.write_explanation(REC, TOTALS, "m", store=store)
+    assert out["source"] == "template" and out["broken"] and len(store) == 0
+
+
+def test_broken_text_already_saved_is_not_shown(tmp_path):
+    store = LabelStore(tmp_path / "e.json")
+    facts = explain.facts_for(REC, TOTALS)
+    store.put(explain.label_key(explain.prompt_for(facts), "", "m", explain.PROMPT_VERSION), "Green!!!!!!!!!!!!!!")
+    out = explain.write_explanation(REC, TOTALS, "m", store=store, allow_llm=False)
+    assert out["source"] == "template"
