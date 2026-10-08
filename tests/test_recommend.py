@@ -25,7 +25,7 @@ def client(name, revenue, billable_h, unbilled_h, months=MONTHS, revenue_by_mont
     return inv, te
 
 
-def run(*clients, labels_extra=None):
+def run(*clients, labels_extra=None, settings=SETTINGS):
     inv = sum((c[0] for c in clients), [])
     te = sum((c[1] for c in clients), [])
     tables = {
@@ -41,8 +41,8 @@ def run(*clients, labels_extra=None):
                                           "requests", "r")
         labels = [{"label": "extra_unpaid" if i < n_extra else "in_scope"}
                   for _, n_extra, n_total in labels_extra for i in range(n_total)]
-    result = pipeline.run_pipeline(tables, SETTINGS)
-    return recommend.recommend_actions(result, SETTINGS, labels).set_index("client")
+    result = pipeline.run_pipeline(tables, settings)
+    return recommend.recommend_actions(result, settings, labels).set_index("client")
 
 
 def test_price_rise_formula():
@@ -113,3 +113,31 @@ def test_labels_are_optional_and_add_the_extra_request_share():
     assert not without.loc["A", "scope_signals_available"]
     assert with_labels.loc["A", "extra_request_share_3m"] == pytest.approx(0.75)
     assert "75% of requests" in with_labels.loc["A", "why"]
+
+
+WITH_OVERHEAD = {**SETTINGS, "overhead_multiplier": 1.5}
+
+
+def test_never_end_a_client_that_covers_its_own_costs():
+    """D-36: $1,000 a month, 16 h x $50 = $800 staff cost, + 50% overhead = $1,200. Loses $200 a month
+    after overhead, but adds $200 before it: ending it would leave the overhead and lose the $200."""
+    r = run(client("Covers", 1000, 16, 0), settings=WITH_OVERHEAD).loc["Covers"]
+    assert r["profit_3m"] == pytest.approx(-600) and r["contribution_3m"] == pytest.approx(600)
+    assert r["action"] == recommend.RAISE
+
+
+def test_end_saves_only_the_clients_own_costs():
+    """D-36: $500 a month against $800 staff cost: contribution -$300 a month. Ending saves
+    $300 x 3 months x 4 = $3,600 a year, not the $1,400 a month loss after overhead."""
+    r = run(client("Under", 500, 16, 0), settings=WITH_OVERHEAD).loc["Under"]
+    assert r["action"] == recommend.END
+    assert r["dollar_effect_per_year"] == pytest.approx(3600)
+    assert "shared overhead stays" in r["why"]
+
+
+def test_cut_scope_saves_staff_cost_not_overhead():
+    """D-36: 8 unbilled hours a month x $50 = $400 staff cost; x 3 months x 4 = $4,800 a year saved.
+    Its $200 a month of overhead share stays with the agency."""
+    r = run(client("Extra", 2000, 16, 8), settings=WITH_OVERHEAD).loc["Extra"]
+    assert r["action"] == recommend.CUT
+    assert r["dollar_effect_per_year"] == pytest.approx(4800)

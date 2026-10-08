@@ -32,13 +32,15 @@ def _recent(result, months=MONTHS):
     rows = {}
     for client, g in cm.groupby("client"):
         rows[client] = {"revenue_3m": g["revenue"].sum(),
-                        "cost_3m": g["direct_cost"].sum() + g["labour_cost"].sum() + g["late_cost"].sum()}
+                        "cost_3m": g["direct_cost"].sum() + g["labour_cost"].sum() + g["late_cost"].sum(),
+                        "overhead_3m": g["overhead_cost"].sum()}
     for client, g in te.groupby("client"):
         unbilled = g[g["billable"] == False]  # noqa: E712
         r = rows.setdefault(client, {"revenue_3m": 0.0, "cost_3m": 0.0})
         r["hours_3m"] = g["hours"].sum()
         r["unbilled_hours_3m"] = unbilled["hours"].sum()
-        r["unbilled_cost_3m"] = unbilled["labour_cost"].sum()
+        r["unbilled_cost_3m"] = unbilled["labour_cost"].sum()        # with its overhead share
+        r["unbilled_staff_cost_3m"] = unbilled["staff_cost"].sum()  # what the agency actually stops paying
     return rows
 
 
@@ -79,6 +81,8 @@ def recommend_actions(result, settings, labels=None):
         x = recent.get(c, {})
         rev, cost = x.get("revenue_3m", 0.0), x.get("cost_3m", 0.0)
         profit_3m = rev - cost
+        # D-36: contribution leaves out shared overhead, which stays if the work or the client goes.
+        contribution_3m = profit_3m + x.get("overhead_3m", 0.0)
         margin_3m = profit_3m / rev if rev > 0 else None
         unbilled_share = x.get("unbilled_hours_3m", 0) / x["hours_3m"] if x.get("hours_3m") else 0.0
         sig = signals.get(c)
@@ -88,13 +92,14 @@ def recommend_actions(result, settings, labels=None):
             t["margin_trend"] <= FALLING_TREND
         rise = price_rise_needed(rev, cost, target)
         rise_dollars = (cost / (1 - target) - rev) * ANNUAL if rise is not None else None
-        cut_saving = x.get("unbilled_cost_3m", 0.0) * ANNUAL
+        cut_saving = x.get("unbilled_staff_cost_3m", 0.0) * ANNUAL  # D-36: overhead does not go away
         cut_margin = (profit_3m + x.get("unbilled_cost_3m", 0.0)) / rev if rev > 0 else None
         scope_signal = unbilled_share >= UNBILLED_SHARE_SIGNAL or \
             (extra_share is not None and extra_share >= EXTRA_SHARE_SIGNAL and sig["extra_requests_3m"] >= 3)
 
         alternative = None
-        cut_profit = profit_3m + x.get("unbilled_cost_3m", 0.0)
+        cut_profit = profit_3m + x.get("unbilled_cost_3m", 0.0)                   # client's view, after overhead
+        cut_contribution = contribution_3m + x.get("unbilled_staff_cost_3m", 0.0)  # agency's view (D-36)
         if rev <= 0 and not x.get("hours_3m"):
             action, effect = KEEP, 0.0
             why = "No invoices or hours in the last 3 months; nothing to change."
@@ -102,23 +107,27 @@ def recommend_actions(result, settings, labels=None):
             action, effect = KEEP, 0.0
             why = f"Last 3 months' margin {margin_3m:.0%} is at or above the {target:.0%} target."
         elif rev <= 0:
-            action, effect = CUT, cut_saving if cut_saving > 0 else cost * ANNUAL
+            action, effect = CUT, cut_saving if cut_saving > 0 else (cost - x.get("overhead_3m", 0.0)) * ANNUAL
             why = ("Hours were logged in the last 3 months but nothing was invoiced: "
                    "bill this work or stop it.")
         elif scope_signal and ((cut_margin is not None and cut_margin >= target - NEAR_TARGET)
-                               or (profit_3m < 0 <= cut_profit)):
+                               or (profit_3m < 0 <= cut_profit) or (contribution_3m < 0 <= cut_contribution)):
             action, effect = CUT, cut_saving
-            why = (f"Unbilled work costs ${x.get('unbilled_cost_3m', 0):,.0f} a quarter "
+            why = (f"Unbilled work costs ${x.get('unbilled_staff_cost_3m', 0):,.0f} a quarter in staff time "
                    f"({unbilled_share:.0%} of hours unbilled"
                    + (f", {extra_share:.0%} of requests look like extra unpaid work" if extra_share is not None
-                      else "") + f"). Stopping or billing it brings margin to {cut_margin:.0%}.")
-        elif (r.profit_last_12m < 0 and profit_3m < 0 and cut_profit < 0
+                      else "") + f"). Stopping or billing it brings margin to {cut_margin:.0%}."
+                   + (f" That is still below the {target:.0%} target, so a price rise is needed as well."
+                      if cut_margin < target - NEAR_TARGET else ""))
+        elif (r.contribution_last_12m < 0 and contribution_3m < 0 and cut_contribution < 0
               and rise is not None and rise > END_IF_RISE_ABOVE):
-            # Last resort: losing over 12 months and now, cutting unbilled work would not
-            # even break even, and the price rise needed is above END_IF_RISE_ABOVE.
-            action, effect = END, -profit_3m * ANNUAL
-            why = (f"Losing ${-profit_3m * ANNUAL:,.0f} a year at the current rate; a price rise of "
-                   f"{rise:.0%} would be needed to reach the {target:.0%} target.")
+            # Last resort (D-24, D-36): the client does not even cover its own staff and direct costs,
+            # over 12 months and now, cutting unbilled work would not fix that, and the price rise
+            # needed is above END_IF_RISE_ABOVE. Shared overhead is left out: it stays if the client goes.
+            action, effect = END, -contribution_3m * ANNUAL
+            why = (f"Does not cover its own staff and direct costs: ending it saves "
+                   f"${-contribution_3m * ANNUAL:,.0f} a year at the current rate (shared overhead stays); "
+                   f"a price rise of {rise:.0%} would be needed to reach the {target:.0%} target.")
             alternative = (f"Alternative: raise the price by {rise:.0%} (${rise_dollars:,.0f} a year)"
                            + (f", or cut unbilled work worth ${cut_saving:,.0f} a year" if cut_saving > 0 else "")
                            + ".")
@@ -132,6 +141,7 @@ def recommend_actions(result, settings, labels=None):
             "client": c, "action": action, "dollar_effect_per_year": round(effect or 0.0, 2), "why": why,
             "alternative": alternative, "heading_to_loss": warning,
             "revenue_3m": round(rev, 2), "cost_3m": round(cost, 2), "profit_3m": round(profit_3m, 2),
+            "contribution_3m": round(contribution_3m, 2),
             "margin_3m": margin_3m, "target_margin": target,
             "price_rise_needed": rise, "price_rise_dollars_per_year": rise_dollars,
             "unbilled_share_3m": unbilled_share, "unbilled_cost_per_year": round(cut_saving, 2),

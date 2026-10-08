@@ -56,6 +56,9 @@ def run_pipeline(tables, settings, exclusions=None):
     cm, inv, te, as_of = cost_engine.compute_client_month_profit(
         tables["invoices"], tables["time_entries"], settings, tables.get("requests"))
     totals = cost_engine.compute_client_totals(cm, inv, settings, as_of)
+    rate = cost_engine.overhead_rate(tables["time_entries"], settings, as_of)
+    result["overhead"] = {"per_year": settings.get("overhead_per_year", 0) or 0, "rate_per_hour": rate,
+                          "multiplier": None if rate is not None else settings["overhead_multiplier"]}
     ranked, unranked = cost_engine.rank_clients(totals)
     result.update({"client_month": cm, "invoices_costed": inv, "time_costed": te, "as_of": as_of,
                    "totals": totals, "ranked": ranked, "unranked": unranked, "stopped": None,

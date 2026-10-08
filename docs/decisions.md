@@ -35,7 +35,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-21 | 2026-10-06 | Forecast set-up: operating margin, time split, baseline ships | Confirmed | Yes (benchmark 3) |
 | D-22 | 2026-10-06 | Benchmark 4 result; prompt for clients without services fixed | Confirmed | Yes (benchmark 4) |
 | D-23 | 2026-10-06 | Ship the LLM labeller with services, as a reviewed suggestion | Confirmed | Yes (benchmark 4) |
-| D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Confirmed | Yes (seed 42) |
+| D-24 | 2026-10-06 | Recommendation rules: one action per client, last 3 months, end only as last resort | Superseded by D-36 | Yes (seed 42) |
 | D-25 | 2026-10-06 | Requests optional; time-log warning; stop calling a down provider | Confirmed | No |
 | D-26 | 2026-10-06 | Explanations: facts from code, LLM writes words, number check with template fallback | Confirmed | Yes (benchmark 6) |
 | D-27 | 2026-10-06 | Benchmark 2 headline is bottom K, bottom 10 second | Confirmed | Yes (benchmark 2, 3 seeds) |
@@ -47,6 +47,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-33 | 2026-10-07 | Benchmark 8 and a re-run on unseen seeds 101-105 | Assumed | Yes (unseen seeds) |
 | D-34 | 2026-10-08 | Show the forecast on the screen as a trend chart with its measured error | Assumed | Yes (seed 42) |
 | D-35 | 2026-10-08 | Security for the public app: AI spending caps, no visitor data on disk, upload limit, escaping, pinned versions | Assumed | Partly (tests, local check) |
+| D-36 | 2026-10-08 | Separate contribution from shared overhead; real overhead rate; "end" and "cut" use contribution | Assumed | Yes (seed 42, 8 seeds) |
 
 ---
 
@@ -495,7 +496,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 ## D-24: Recommendation rules: one action per client, last 3 months, end only as last resort
 - **ID:** D-24
 - **Date:** 2026-10-06
-- **Status:** Confirmed
+- **Status:** Superseded by D-36
 - **Context:** The product promises one action per ranked client (keep, raise price, cut scope, end the contract) with its dollar effect, computed by rules, never ending a contract without numbers and one alternative.
 - **Options considered:**
   1. Rules on the last 12 months.
@@ -694,6 +695,23 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Not measured on the live app yet. Locally: the demo reuses all 2,601 saved labels and the first 10 clients' saved explanations with the AI unreachable; a fresh dataset with about 2,600 unsaved messages makes no AI calls and shows the limit warning; the escaped text renders without visible backslashes (screenshot). `git log --all -p` searched for key patterns: none. Found while doing this: the screen tests made real AI calls and one wrote an explanation for a made-up test client into `labels/saved_explanations.json` (committed in 4179c52, removed in the next commit); the tests now switch AI calls off.
 - **Evidence:** `tests/test_explain.py` (`test_escape_markdown_neutralises_links_images_and_html`, `test_no_new_llm_call_when_not_allowed`, `test_memory_store_never_writes_to_disk`), `tests/test_app.py::test_ranked_list_has_actions_and_asks_before_long_labelling`; local app check and screenshot on 2026-10-08.
 - **Related decisions:** D-14, D-15, D-25, D-26, D-28
+
+## D-36: Separate contribution from shared overhead; real overhead rate; "end" and "cut" use contribution
+- **ID:** D-36
+- **Date:** 2026-10-08
+- **Status:** Assumed
+- **Context:** All overhead was a guessed ×1.3 on staff cost, and every rule used profit after that overhead. "End the contract" then claimed to save costs (rent, software, admin) that stay when a client leaves, and "cut scope" counted overhead as saved. The team lead asked to include overhead properly.
+- **Options considered:**
+  1. Keep one profit figure and state the limit.
+  2. A real overhead rate from the owner's yearly overhead; two figures per client, contribution (before shared overhead) and profit (after its share); "end" and the savings of "cut" on contribution, "raise price" on profit; a reconciliation line.
+  3. Option 2 plus a profit-and-loss import, a choice of how to split overhead, and estimates of unlogged time.
+- **Decision:** Option 2, approved by the team lead on 2026-10-08 (option 3 is "next"). New setting `overhead_per_year` (0 = not given, then the multiplier is used as before), split by hours logged in the last 12 months. Contribution = revenue − direct costs − staff cost − late cost; profit = contribution − overhead share. Rules (replacing D-24 where they differ): end only if contribution is negative over 12 months and over 3 months, stays negative after cutting the unbilled staff cost, and the price rise needed is above 50%; its effect is the contribution lost per year. Cut scope when the scope signals hold and cutting the unbilled work reaches the target, or turns the client's loss after overhead into a profit, or turns a negative contribution positive; its effect is the unbilled staff cost per year (overhead stays). The cut-scope reason now says when a price rise is also needed. Raise price, keep, warnings and thresholds are unchanged. The ranking stays on profit. The explanation facts gained contribution (prompt version explain-v2).
+- **Factors that led to it:** Shared overhead does not go away with one client, so a client that covers its own staff and direct costs still helps pay the rent. Prices should cover a fair share of everything.
+- **Trade-offs accepted:** Splitting overhead by hours is one assumption among several. "End the contract" now almost never fires on generated data, because every planted loss-maker covers its own costs or would after cutting its unbilled work. Changed actions invalidated the saved explanations, which were written again (48 calls). The demo script's "end the contract" examples are gone.
+- **Expected effect:** No suggestion claims to save costs that stay; owners who enter their real overhead get a real rate.
+- **Actual measured effect:** Seed 42 (multiplier 1.3, as before): profit and the ranking unchanged (benchmark 1 still exact); actions before: 19 keep, 14 cut scope, 9 raise price, 6 end; after: 19 keep, 19 cut scope, 10 raise price, 0 end. The 6 former "end" clients: 5 now cut scope (for example Tidewater Academy: contribution −$5,127 in the last 3 months, cutting $6,594 of unbilled staff cost a quarter turns it positive; effect $26,377 a year instead of $54,502), 1 raise price (Quarry Outdoors, contribution positive). Lakeshore Clinic stays cut scope; its effect falls from $68,129 to $52,407 a year (staff cost only). Ranked clients, last 12 months: contribution $963,246 − overhead $765,394 = profit $197,852. Benchmark 8: active loss-makers given an action 15/15 (seed 42), 49/49 (seeds 101 to 105); healthy clients never told cut or end 10/10, 66/66; "end" suggestions: 0 on seed 42 and on seeds 101 to 105, 1 on seed 2 (a planted loss-maker). Benchmark 6: 48 explanations written again, 0 with an invented number.
+- **Evidence:** `python scripts/run_benchmarks.py` and `python scripts/run_benchmarks.py --seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json`, 2026-10-08; `scripts/run_pipeline.py --exclude-suggested` before and after; tests `test_yearly_overhead_becomes_a_rate_per_logged_hour`, `test_multiplier_used_when_no_yearly_overhead`, `test_never_end_a_client_that_covers_its_own_costs`, `test_end_saves_only_the_clients_own_costs`, `test_cut_scope_saves_staff_cost_not_overhead`; screenshot of the local app.
+- **Related decisions:** D-11, D-16, D-24, D-26, D-31, D-33
 
 ---
 

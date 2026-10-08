@@ -17,6 +17,7 @@ clientprofit.cost_engine._check -> clientprofit.schema.SRC_ROW
 clientprofit.cost_engine.compute_client_month_profit -> clientprofit.cost_engine.as_of_date
 clientprofit.cost_engine.compute_client_month_profit -> clientprofit.cost_engine.invoice_costs
 clientprofit.cost_engine.compute_client_month_profit -> clientprofit.cost_engine.labour_costs
+clientprofit.cost_engine.compute_client_month_profit -> clientprofit.cost_engine.overhead_rate
 clientprofit.cost_engine.compute_client_month_profit -> clientprofit.schema.SRC_ROW
 clientprofit.cost_engine.compute_client_totals -> clientprofit.schema.SRC_ROW
 clientprofit.cost_engine.invoice_costs -> clientprofit.cost_engine._check
@@ -94,6 +95,7 @@ clientprofit.pipeline.load_files -> clientprofit.ingest.propose_mapping
 clientprofit.pipeline.load_files -> clientprofit.ingest.read_raw
 clientprofit.pipeline.run_pipeline -> clientprofit.cost_engine.compute_client_month_profit
 clientprofit.pipeline.run_pipeline -> clientprofit.cost_engine.compute_client_totals
+clientprofit.pipeline.run_pipeline -> clientprofit.cost_engine.overhead_rate
 clientprofit.pipeline.run_pipeline -> clientprofit.cost_engine.rank_clients
 clientprofit.pipeline.run_pipeline -> clientprofit.ingest.unify_client_names
 clientprofit.pipeline.run_pipeline -> clientprofit.validate.ERROR
@@ -203,4 +205,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-197 call edges.
+199 call edges.

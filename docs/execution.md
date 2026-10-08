@@ -249,7 +249,8 @@ check has its own `tests/fixtures/hand_calc/config.yaml`. They are not based on 
 | Key | Meaning | Placeholder default |
 |---|---|---|
 | `staff_costs` | Hourly cost per staff member | empty; filled on the settings screen, or from `staff_costs.csv` in the data folder |
-| `overhead_multiplier` | Factor applied to the cost of hours to cover overhead | 1.3 |
+| `overhead_per_year` | Shared overhead a year (rent, software, admin), split by logged hours; 0 means not given (D-36) | 0 |
+| `overhead_multiplier` | Used only when `overhead_per_year` is 0: overhead = staff cost × (multiplier − 1) | 1.3 |
 | `target_margin` | Margin a client should reach | 0.30 |
 | `late_payment_annual_rate` | Yearly cost of money tied up in unpaid invoices | 0.08 |
 | `payment_terms_days` | Days a client has to pay before an invoice counts as late | 30 |
@@ -373,14 +374,16 @@ hand-calculated files in `tests/fixtures/hand_calc/` exactly.
 | `coerce_types(df, table, src_file)` | `ingest.py` | Gives each schema column its type; adds `_src_file` and `_src_row` (spreadsheet row number, header = 1). Unreadable values and blank text become empty; no row is dropped |
 | `as_of_date(invoices, time_entries, requests=None)` | `cost_engine.py` | Latest invoice, work or request date; payment and due dates are left out (D-29) |
 | `invoice_costs(invoices, settings, as_of)` | `cost_engine.py` | Due date, days late, late cost, month, overdue-unpaid flag per invoice; `direct_cost` filled with 0 when empty or missing (D-31) |
-| `labour_costs(time_entries, settings)` | `cost_engine.py` | Hours x hourly cost x `overhead_multiplier` per time entry |
-| `compute_client_month_profit(invoices, time_entries, settings, requests=None)` | `cost_engine.py` | Revenue, direct cost, labour cost, late cost, profit = revenue − direct − labour − late (D-31), margin (empty when revenue is 0), and the `_src_row` numbers behind each client-month |
-| `compute_client_totals(client_month, invoices_with_costs, settings, as_of)` | `cost_engine.py` | Months of data, 12-month revenue, direct cost, profit and margin, profit over all data, `profit_if_overdue_unpaid` (D-16; an overdue invoice's direct cost stays), ranked, `not_ranked_because` (under the minimum months, or no invoices or hours in the last 12 months, D-30), loss-making |
+| `overhead_rate(time_entries, settings, as_of)` | `cost_engine.py` | `overhead_per_year` ÷ hours logged in the 12 months to the as-of date; None when `overhead_per_year` is 0 (D-36) |
+| `labour_costs(time_entries, settings, rate=None)` | `cost_engine.py` | Per time entry: `staff_cost` = hours × hourly cost; `overhead_cost` = hours × `rate`, or staff cost × (`overhead_multiplier` − 1) when there is no rate; `labour_cost` = the two together (D-36) |
+| `compute_client_month_profit(invoices, time_entries, settings, requests=None)` | `cost_engine.py` | Revenue, direct cost, staff cost, overhead, labour cost, late cost, contribution = revenue − direct − staff − late, profit = contribution − overhead (D-31, D-36), margin (empty when revenue is 0), and the `_src_row` numbers behind each client-month |
+| `compute_client_totals(client_month, invoices_with_costs, settings, as_of)` | `cost_engine.py` | Months of data, 12-month revenue, direct cost, contribution, overhead, profit and margin, profit over all data, `profit_if_overdue_unpaid` (D-16; an overdue invoice's direct cost stays), ranked, `not_ranked_because` (under the minimum months, or no invoices or hours in the last 12 months, D-30), loss-making |
 | `rank_clients(totals)` | `cost_engine.py` | Ranked clients by 12-month profit, and unranked clients apart |
 
-Settings used: `staff_costs`, `overhead_multiplier`, `late_payment_annual_rate`,
-`payment_terms_days`, `unpaid_warning_days`, `min_months_for_ranking`.
-They are passed in as a dictionary; `config.py` does not exist yet.
+Settings used: `staff_costs`, `overhead_per_year`, `overhead_multiplier`, `late_payment_annual_rate`,
+`payment_terms_days`, `unpaid_warning_days`, `min_months_for_ranking`, passed in as a
+dictionary (from `config.load_config` and the settings screen). `run_pipeline` also returns
+`overhead`: the yearly figure, the rate per hour, or the multiplier used (D-36).
 
 Validation checks: unreadable required values (error), staff without a cost
 (error), zero or negative hours, invoices paid before issue, negative amounts,
@@ -406,9 +409,9 @@ entries required; requests, clients and staff costs optional, D-25), then
 (1) check or change the suggested mapping per file, (2) costs and rules with
 an editable staff cost table, (3) problems, each with an "exclude these rows"
 box (ticked by default only where suggested), then "Rank clients" shows
-(4) the ranked list with profit over 12 and the last 3 months, direct costs
+(4) the ranked list with profit and contribution over 12 months (D-36), profit over the last 3 months, direct costs
 when the data has any (D-31), suggested action, effect per year and "heading
-to a loss" (D-24), a time-log warning, unranked clients apart with the reason (D-30), then "Scope-creep
+to a loss" (D-24), a time-log warning, a note explaining contribution and overhead with the line "contribution − overhead = profit" for all ranked clients (`overhead_note`, D-36), unranked clients apart with the reason (D-30), then "Scope-creep
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
 and (5) client detail: the suggested action, reason and alternative, a margin
@@ -496,14 +499,16 @@ runs only the benchmarks that need no LLM (2, 3, 7, 8) on those seeds, which
 were never used while building or tuning (verified 2026-10-07). This is the
 only script that reads the truth file.
 
-## 19. Recommendations (Verified on 2026-10-06)
+## 19. Recommendations (Verified on 2026-10-08)
 
 | Function | File | What it does |
 |---|---|---|
-| `recommend_actions(result, settings, labels=None)` | `recommend.py` | One row per ranked client: `action`, `dollar_effect_per_year`, `why`, `alternative` (always set for "end the contract"), `heading_to_loss`, and the figures behind them (3-month revenue, cost, profit, margin, price rise needed, unbilled share and cost, extra-request share, margin trend) |
+| `recommend_actions(result, settings, labels=None)` | `recommend.py` | One row per ranked client: `action`, `dollar_effect_per_year`, `why`, `alternative` (always set for "end the contract"), `heading_to_loss`, and the figures behind them (3-month revenue, cost, profit, contribution, margin, price rise needed, unbilled share and cost, extra-request share, margin trend) |
 | `price_rise_needed(revenue, cost, target)` | `recommend.py` | Rise so that (new revenue − cost) / new revenue = target |
 
-Rules and thresholds: D-24 and the constants at the top of `recommend.py`.
+Rules and thresholds: D-36 (which replaces D-24) and the constants at the top of `recommend.py`.
+"End the contract" and the dollar effects of "end" and "cut scope" use contribution (before
+shared overhead); "raise price" and the margins use profit (after overhead).
 The screen and `scripts/run_pipeline.py` both use it.
 
 ## 20. Explanations (Verified on 2026-10-06)

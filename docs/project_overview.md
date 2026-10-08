@@ -113,11 +113,13 @@ money, which are heading toward a loss, and what should I do about each one?**
 For each client and month:
 
 - **Revenue** = sum of invoices dated in that month.
-- **Labour cost** = for every hour logged: hours × that person's hourly cost × overhead multiplier.
+- **Staff cost** = for every hour logged: hours × that person's hourly cost.
   Non-billable hours count, because they still cost money.
 - **Late-payment cost** = invoice amount × yearly cost of money × days late ÷ 365.
   An invoice not yet paid keeps building late cost up to the last date in the data.
-- **Profit** = revenue − labour cost − late-payment cost.
+- **Contribution** = revenue − direct costs − staff cost − late-payment cost: what the agency loses without the client.
+- **Overhead share** = hours × (the owner's yearly shared overhead ÷ hours logged in a year), or staff cost × 0.3 if no yearly figure is given (D-36).
+- **Profit** = contribution − overhead share. Ranking and "raise price" use profit; "end the contract" and the savings of "cut scope" use contribution, because shared overhead stays when a client goes.
 
 Every rule is written down (decisions D-11, D-16, D-18) and checked against a
 hand calculation done by a teammate who did not write or read the engine code.

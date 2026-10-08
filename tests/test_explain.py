@@ -8,11 +8,11 @@ import pytest
 from clientprofit import explain, llm
 from clientprofit.scope.store import LabelStore
 
-REC = {"client": "Studio 54", "action": "raise price", "dollar_effect_per_year": 10006.14, "profit_3m": 2500.0,
+REC = {"client": "Studio 54", "action": "raise price", "dollar_effect_per_year": 10006.14, "profit_3m": 2500.0, "contribution_3m": 4000.0,
        "margin_3m": 0.2, "target_margin": 0.3, "price_rise_needed": 0.1477, "unbilled_share_3m": 0.0,
        "unbilled_cost_per_year": 0.0, "extra_request_share_3m": None, "heading_to_loss": False,
        "alternative": None, "why": "Last 3 months' margin 20% is below the 30% target; a 15% price rise reaches it."}
-TOTALS = {"profit_last_12m": 12000.0, "revenue_last_12m": 50000.0, "profit_if_overdue_unpaid": 12000.0}
+TOTALS = {"profit_last_12m": 12000.0, "contribution_last_12m": 18000.0, "revenue_last_12m": 50000.0, "profit_if_overdue_unpaid": 12000.0}
 
 
 def test_facts_are_formatted_by_code():

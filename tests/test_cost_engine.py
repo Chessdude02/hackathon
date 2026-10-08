@@ -239,3 +239,27 @@ def test_ranking_orders_by_profit_and_keeps_unranked_apart():
     *_, totals = run(times=times)
     ranked, unranked = ce.rank_clients(totals)
     assert list(ranked["client"]) == ["High", "Low"] and list(unranked["client"]) == ["New"]
+
+
+def test_yearly_overhead_becomes_a_rate_per_logged_hour():
+    """D-36: $12,000 a year over 120 hours logged in the last 12 months = $100 an hour. A client with
+    10 h of Ana ($50) in a month gets $500 staff cost + $1,000 overhead; contribution is before overhead."""
+    settings = {**SETTINGS, "overhead_per_year": 12000}
+    times = [("A", "Ana", "2026-01-10", 10, "TRUE"), ("B", "Ana", "2026-02-10", 110, "TRUE")]
+    cm, *_ , totals = run(invoices=[("A", "2026-01-15", 3000, None, "2026-01-20")], times=times,
+                          settings=settings)
+    a = cm[cm["client"] == "A"].iloc[0]
+    assert a["staff_cost"] == 500 and a["overhead_cost"] == pytest.approx(1000)
+    assert a["contribution"] == pytest.approx(2500) and a["profit"] == pytest.approx(1500)
+    t = totals.set_index("client")
+    assert t.loc["A", "contribution_last_12m"] == pytest.approx(2500)
+    assert t.loc["A", "overhead_last_12m"] == pytest.approx(1000)
+
+
+def test_multiplier_used_when_no_yearly_overhead():
+    """D-36: without a yearly figure, overhead = staff cost x (multiplier - 1), as before (1.5 here)."""
+    cm, *_ = run(invoices=[("A", "2026-01-15", 3000, None, "2026-01-20")],
+                 times=[("A", "Ana", "2026-01-10", 10, "TRUE")])
+    a = cm.iloc[0]
+    assert a["staff_cost"] == 500 and a["overhead_cost"] == pytest.approx(250) and a["labour_cost"] == 750
+    assert a["contribution"] == pytest.approx(2500) and a["profit"] == pytest.approx(2250)

@@ -10,7 +10,7 @@ import re
 from clientprofit.llm import complete
 from clientprofit.scope.store import LabelStore, label_key
 
-PROMPT_VERSION = "explain-v1"
+PROMPT_VERSION = "explain-v2"  # v2: contribution and overhead facts (D-36)
 SYSTEM = (
     "You explain one client's numbers to the owner of a small agency, in two or three short, plain "
     "sentences. Use ONLY the facts given. Copy every number exactly as written, including $ and %. "
@@ -43,11 +43,13 @@ def facts_for(rec, totals):
     f = {
         "Client": rec["client"],
         "Suggested action": rec["action"],
-        "Profit over the last 12 months": money(totals["profit_last_12m"]),
+        "Profit over the last 12 months, after its share of shared overhead": money(totals["profit_last_12m"]),
+        "Contribution over the last 12 months, before shared overhead": money(totals["contribution_last_12m"]),
         "Revenue over the last 12 months": money(totals["revenue_last_12m"]),
         **({"Direct costs over the last 12 months (not staff time)": money(totals["direct_cost_last_12m"])}
            if totals.get("direct_cost_last_12m") else {}),
         "Profit over the last 3 months": money(rec["profit_3m"]),
+        "Contribution over the last 3 months": money(rec["contribution_3m"]),
         "Target margin": pct(rec["target_margin"]),
     }
     if rec.get("margin_3m") is not None and rec["margin_3m"] == rec["margin_3m"]:

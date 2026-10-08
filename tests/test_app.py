@@ -55,7 +55,10 @@ def test_ranked_list_has_actions_and_asks_before_long_labelling(demo_dir, monkey
     [b for b in at.button if b.label == "Rank clients"][0].click().run()
     assert not at.exception
     ranked = [d.value for d in at.dataframe if "Rank" in d.value.columns][0]
-    assert {"Suggested action", "Effect per year", "Profit (last 3 mo)", "Heading to a loss"} <= set(ranked.columns)
+    assert {"Suggested action", "Effect per year", "Profit (last 3 mo)", "Contribution (12 mo)",
+            "Heading to a loss"} <= set(ranked.columns)
+    # D-36 reconciliation line; $ escaped so Streamlit does not draw it as a maths formula
+    assert any("contribution \\$" in c.value and "= profit \\$" in c.value for c in at.caption)
     rows = [d.value for d in at.dataframe if "Row" in d.value.columns]
     assert rows and all("_src_row" not in d.columns for d in rows)
     dates = rows[0].iloc[:, 2].astype(str)

@@ -34,7 +34,7 @@ works, not that it is accurate on real businesses.
 | 5 | Column mapping on 10 header styles | 172 of 172, but circular (same author wrote headers and word list). Real export headers pending. |
 | 6 | Explanations with an invented number | 0 of 48 |
 | 7 | Upload to ranked list, 50 clients | About 1 second (target under 60) |
-| 8 | Suggested actions against planted client types | "End the contract" only ever on planted loss-makers (9 of 9 on new seeds); every active loss-maker got an action (49 of 49); no healthy client told to cut or end (66 of 66). Warnings: all 18 on planted problem clients, but only 4 of 41 late-trouble clients warned. |
+| 8 | Suggested actions against planted client types | Every active loss-maker got an action (49 of 49 on new seeds); no healthy client told to cut or end (66 of 66). Since overhead is separated (D-36), "end the contract" fires almost never (once in 8 datasets, on a planted loss-maker): losing clients still cover their own costs or would after cutting unbilled work. Warnings: all 18 on planted problem clients, but only 4 of 41 late-trouble clients warned. |
 
 **Unseen data.** Benchmarks 2, 3, 7 and 8 were re-run on 5 new generated
 datasets (seeds 101 to 105) never used while building or tuning: bottom K
@@ -55,15 +55,21 @@ Diagram: `docs/architecture.md`. In short:
    suggests which column means what; the owner confirms.
 2. **Validate:** lists every problem (bad values, duplicates, staff without a
    cost). No row is ever dropped silently; the owner ticks what to exclude.
-3. **Cost engine (plain arithmetic, no AI):** profit = revenue − direct costs
-   (optional: freelancers, ad spend, materials) − hours × hourly cost × overhead
-   − cost of late payment, per client per month. Every figure links back to
-   its input rows.
+3. **Cost engine (plain arithmetic, no AI):** per client per month,
+   **contribution** = revenue − direct costs (optional: freelancers, ad spend,
+   materials) − staff hours × hourly cost − cost of late payment: what the agency
+   would lose without the client. **Profit** = contribution − the client's share
+   of shared overhead (rent, software, admin), from the owner's yearly overhead
+   split by logged hours, or ×1.3 on staff cost if not given. Every figure links
+   back to its input rows.
 4. **Rank:** by 12-month profit. Clients with under 3 months of data, or with
    nothing in the last 12 months, are listed apart with the reason and not ranked.
 5. **Recommend:** fixed rules on the last 3 months. "End the contract" only
-   when the client loses money over 12 months and 3 months, cutting unbilled
-   work would not fix it, and the price rise needed is over 50%.
+   when the client does not cover even its own costs (negative contribution)
+   over 12 months and 3 months, cutting unbilled work would not fix it, and the
+   price rise needed is over 50%. "End" and "cut scope" savings never count
+   shared overhead, because it stays when a client goes; "raise price" aims to
+   cover it.
 6. **Forecast:** each client's margin trend with next quarter's margin, shown
    as a range: the typical error is measured on the owner's own data. The
    forecast is "last 3 months carried forward", because a LightGBM model was

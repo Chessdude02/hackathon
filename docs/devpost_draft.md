@@ -23,15 +23,18 @@ Finder:
 
 - reads messy column names and asks the owner to confirm the mapping,
 - lists every problem in the files and never drops a row on its own,
-- works out true profit per client per month: revenue minus staff hours at
-  their real cost, minus overhead, minus the cost of late payment,
+- works out two figures per client per month: contribution (revenue minus
+  staff hours at their real cost, direct costs and the cost of late payment)
+  and profit after the client's share of shared overhead (rent, software,
+  admin), using the owner's real yearly overhead,
 - ranks clients by 12-month profit, and keeps clients with under 3 months of
   data apart instead of ranking them on too little evidence,
 - warns about clients that are profitable over the year but heading toward a
   loss now,
 - suggests one action per client (keep, raise price, cut scope, end the
   contract) with its dollar effect per year; "end the contract" is a last
-  resort and always comes with an alternative,
+  resort for clients that don't even cover their own costs, always comes with
+  an alternative, and never counts shared overhead as saved,
 - uses an LLM to flag client requests that look like extra unpaid work, and to
   write a short explanation per client.
 
@@ -79,7 +82,10 @@ it is accurate on real businesses.
 - Two of our three AI parts lost to, or only tied, simple rules. We reported
   that instead of tuning on our own test data.
 - The first version of the recommendation rules suggested ending 14 of 48
-  clients. We tightened "end the contract" to a true last resort (6 of 48).
+  clients. We tightened "end the contract" to a last resort (6 of 48), then
+  realised even those counted rent and software as "saved". Once we separated
+  a client's own costs from shared overhead, none of the 48 needed ending:
+  every losing client could be fixed by cutting unbilled work or repricing.
 - Labelling all 2,601 demo requests took 33 minutes, so labels are saved and
   reused, and the ranked list never waits for the AI.
 - [Add any team or deployment challenge.]

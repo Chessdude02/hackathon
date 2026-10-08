@@ -50,16 +50,22 @@ On screen: in **5. Client detail**, choose Lakeshore Clinic. Show the action
 box, then the explanation.
 
 > "For each client the tool suggests one action with its dollar effect. Here:
-> cut scope. Almost a third of the hours on this client are never billed.
+> cut scope. Almost a third of the hours on this client are never billed;
+> stopping or billing them saves about fifty-two thousand dollars a year in
+> staff time. Notice we don't count rent or software as saved: those stay
+> whatever you do with one client."
 > The AI writes a short explanation, but it never does the maths. Our code
 > computes every number, and a check throws out any sentence with a number
 > that isn't in our figures."
 
-Optional, if time allows: show Riverbend Cycles or Tidewater Academy, where
-the suggestion is "end the contract" and the screen also shows the alternative.
+Optional, if time allows: point at the two profit columns in the ranked list
+and the line under it ("contribution − overhead = profit").
 
-> "We only suggest ending a contract as a last resort, and always with an
-> alternative."
+> "Two numbers per client: what it contributes, and what's left after its
+> share of overhead. We only suggest ending a contract when a client doesn't
+> even cover its own staff costs, and always with an alternative. In this
+> data no client is that bad: every losing client can be fixed by cutting
+> unbilled work or raising the price."
 
 ### 1:35-1:50 Scope creep
 

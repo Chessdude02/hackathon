@@ -12,6 +12,7 @@ RULES = {
     "staff_costs": (dict, lambda v: all(isinstance(c, NUMBER) and c >= 0 for c in v.values()),
                     "a mapping of staff name to an hourly cost of 0 or more"),
     "overhead_multiplier": (NUMBER, lambda v: v >= 1, "a number of 1 or more"),
+    "overhead_per_year": (NUMBER, lambda v: v >= 0, "a yearly amount of 0 or more (0: use overhead_multiplier)"),
     "target_margin": (NUMBER, lambda v: 0 <= v < 1, "a fraction from 0 to below 1"),
     "late_payment_annual_rate": (NUMBER, lambda v: 0 <= v < 1, "a fraction from 0 to below 1"),
     "payment_terms_days": (int, lambda v: v >= 0, "a whole number of days, 0 or more"),

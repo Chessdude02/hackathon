@@ -49,8 +49,22 @@ def invoice_costs(invoices, settings, as_of):
     return inv
 
 
-def labour_costs(time_entries, settings):
-    """Add the cost of each time entry: hours x hourly cost x overhead multiplier."""
+def overhead_rate(time_entries, settings, as_of):
+    """D-36: shared overhead per logged hour, from the owner's yearly overhead and the hours logged in
+    the 12 months to the as-of date. None when no yearly overhead is given (then the multiplier is used)."""
+    per_year = settings.get("overhead_per_year", 0) or 0
+    if per_year <= 0:
+        return None
+    end = pd.Period(as_of, "M")
+    month = time_entries["work_date"].dt.to_period("M")
+    hours = time_entries.loc[(month > end - 12) & (month <= end), "hours"].clip(lower=0).sum()
+    return per_year / hours if hours > 0 else None
+
+
+def labour_costs(time_entries, settings, rate=None):
+    """Add the cost of each time entry (D-36): staff cost = hours x hourly cost; overhead = hours x
+    `rate` when a yearly overhead is given, else staff cost x (overhead multiplier - 1);
+    labour cost = staff cost + overhead (the same as hours x hourly cost x multiplier when no rate)."""
     _check(time_entries, ["client", "staff", "work_date", "hours"], "time_entries")
     costs = settings["staff_costs"]
     missing = sorted(set(time_entries["staff"]) - set(costs))
@@ -59,7 +73,10 @@ def labour_costs(time_entries, settings):
                               "Add them under staff_costs in the settings.")
     te = time_entries.copy()
     te["hourly_cost"] = te["staff"].map(costs).astype(float)
-    te["labour_cost"] = te["hours"] * te["hourly_cost"] * settings["overhead_multiplier"]
+    te["staff_cost"] = te["hours"] * te["hourly_cost"]
+    te["overhead_cost"] = (te["hours"] * rate if rate is not None
+                           else te["staff_cost"] * (settings["overhead_multiplier"] - 1))
+    te["labour_cost"] = te["staff_cost"] + te["overhead_cost"]
     te["month"] = te["work_date"].dt.to_period("M")
     return te
 
@@ -68,20 +85,23 @@ def compute_client_month_profit(invoices, time_entries, settings, requests=None)
     """Return (client_month table, invoices with costs, time entries with costs, as-of date)."""
     as_of = as_of_date(invoices, time_entries, requests)
     inv = invoice_costs(invoices, settings, as_of)
-    te = labour_costs(time_entries, settings)
+    te = labour_costs(time_entries, settings, overhead_rate(time_entries, settings, as_of))
 
     rev = inv.groupby(["client", "month"]).agg(
         revenue=("amount", "sum"), direct_cost=("direct_cost", "sum"), late_cost=("late_cost", "sum"),
         invoice_rows=(SRC_ROW, list))
     lab = te.groupby(["client", "month"]).agg(
-        labour_cost=("labour_cost", "sum"), hours=("hours", "sum"),
+        labour_cost=("labour_cost", "sum"), staff_cost=("staff_cost", "sum"),
+        overhead_cost=("overhead_cost", "sum"), hours=("hours", "sum"),
         time_rows=(SRC_ROW, list))
     cm = rev.join(lab, how="outer").reset_index()
-    for col in ("revenue", "direct_cost", "late_cost", "labour_cost", "hours"):
+    for col in ("revenue", "direct_cost", "late_cost", "labour_cost", "staff_cost", "overhead_cost", "hours"):
         cm[col] = cm[col].fillna(0.0)
     for col in ("invoice_rows", "time_rows"):
         cm[col] = cm[col].apply(lambda v: v if isinstance(v, list) else [])
-    cm["profit"] = cm["revenue"] - cm["direct_cost"] - cm["labour_cost"] - cm["late_cost"]
+    # D-36: contribution is what the client adds before shared overhead; profit is after its share.
+    cm["contribution"] = cm["revenue"] - cm["direct_cost"] - cm["staff_cost"] - cm["late_cost"]
+    cm["profit"] = cm["contribution"] - cm["overhead_cost"]
     # D-11: margin is left empty when there is no revenue, never shown as 0.
     cm["margin"] = (cm["profit"] / cm["revenue"]).where(cm["revenue"] != 0)
     cm = cm.sort_values(["client", "month"]).reset_index(drop=True)
@@ -113,6 +133,8 @@ def compute_client_totals(client_month, invoices_with_costs, settings, as_of):
             "months_of_data": months_of_data,
             "revenue_last_12m": revenue12,
             "direct_cost_last_12m": w["direct_cost"].sum(),
+            "contribution_last_12m": w["contribution"].sum(),
+            "overhead_last_12m": w["overhead_cost"].sum(),
             "profit_last_12m": p12,
             "profit_all_data": g["profit"].sum(),
             "margin_last_12m": p12 / revenue12 if revenue12 else None,

@@ -1,7 +1,8 @@
 # All settings (docs/execution.md section 9). Placeholder defaults for a first
 # run; not based on any real agency's figures.
 staff_costs: {}                   # name: hourly cost. Filled on the settings screen or from staff_costs.csv
-overhead_multiplier: 1.3
+overhead_multiplier: 1.3          # used when overhead_per_year is 0
+overhead_per_year: 0              # shared costs a year (rent, software, admin). 0: not given (D-36)
 target_margin: 0.30
 late_payment_annual_rate: 0.08
 payment_terms_days: 30

@@ -96,7 +96,12 @@ def mapping_editor(loaded):
 def settings_editor(cfg, staff_names, costs):
     s = dict(cfg)
     c1, c2, c3 = st.columns(3)
-    s["overhead_multiplier"] = c1.number_input("Overhead multiplier", 1.0, 5.0, float(cfg["overhead_multiplier"]), 0.05)
+    s["overhead_per_year"] = c1.number_input(
+        "Shared overhead per year ($)", 0.0, 1e8, float(cfg.get("overhead_per_year", 0)), 1000.0,
+        help="Rent, software, admin salaries, insurance: costs no single client causes. Split by logged hours. "
+             "Leave at 0 to use the overhead multiplier instead (D-36).")
+    s["overhead_multiplier"] = c1.number_input("Overhead multiplier (used when overhead per year is 0)", 1.0, 5.0,
+                                               float(cfg["overhead_multiplier"]), 0.05)
     s["target_margin"] = c2.number_input("Target margin", 0.0, 0.95, float(cfg["target_margin"]), 0.05)
     s["late_payment_annual_rate"] = c3.number_input("Late payment cost per year", 0.0, 0.5,
                                                     float(cfg["late_payment_annual_rate"]), 0.01)
@@ -141,6 +146,7 @@ def ranked_table(result, recs):
     return pd.DataFrame({
         "Rank": r["rank"], "Client": r["client"],
         "Profit (12 mo)": r["profit_last_12m"].map(money),
+        "Contribution (12 mo)": r["contribution_last_12m"].map(money),
         "Revenue (12 mo)": r["revenue_last_12m"].map(money),
         **direct,
         "Margin": r["margin_last_12m"].map(lambda v: "" if pd.isna(v) else f"{v:.0%}"),
@@ -164,7 +170,24 @@ def ranked_view(result, recs):
                "really work, every client looks more profitable than it is.", icon="⏱️")
     slot = st.empty()
     slot.dataframe(ranked_table(result, recs), hide_index=True, width="stretch")
+    st.caption(overhead_note(result).replace("$", "\\$"))  # else Streamlit reads $...$ as maths
     return slot
+
+
+def overhead_note(result):
+    """D-36: what the two profit columns mean, how overhead was split, and how the clients add up."""
+    o, rk = result.get("overhead", {}), result["ranked"]
+    how = (f"your {money(o['per_year'])} a year of shared overhead, split by logged hours "
+           f"({money(o['rate_per_hour'])} an hour)" if o.get("rate_per_hour") is not None
+           else f"staff cost × {o.get('multiplier', 1):.2f} as an estimate of shared overhead (enter your real "
+                "yearly overhead in Settings to replace it)")
+    contribution, overhead = rk["contribution_last_12m"].sum(), rk["overhead_last_12m"].sum()
+    return (f"Contribution = revenue minus the client's own costs (staff time, direct costs, late payment): "
+            f"what you would lose without it. Profit also takes off its share of overhead, using {how}. "
+            f"'End the contract' and 'cut scope' use contribution, because shared overhead stays when "
+            f"a client or its work goes; 'raise price' uses profit. Ranked clients, last 12 months: "
+            f"contribution {money(contribution)} − overhead {money(overhead)} = profit "
+            f"{money(contribution - overhead)}.")
 
 
 def scope_section(result, cfg):
@@ -354,7 +377,8 @@ def client_detail(result, recs, labels, cfg):
     direct = {"Direct costs": cm["direct_cost"].map(money)} if has_direct_costs(result) else {}
     st.dataframe(pd.DataFrame({
         "Month": cm["month"].astype(str), "Revenue": cm["revenue"].map(money), **direct,
-        "Labour cost": cm["labour_cost"].map(money), "Late payment cost": cm["late_cost"].map(money),
+        "Staff cost": cm["staff_cost"].map(money), "Late payment cost": cm["late_cost"].map(money),
+        "Contribution": cm["contribution"].map(money), "Overhead share": cm["overhead_cost"].map(money),
         "Profit": cm["profit"].map(money), "Hours": cm["hours"].round(1),
         "Margin": cm["margin"].map(lambda v: "no revenue" if pd.isna(v) else f"{v:.0%}"),
     }), hide_index=True, width="stretch")
