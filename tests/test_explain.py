@@ -89,3 +89,30 @@ def test_direct_cost_fact_only_when_present():
     assert not any("Direct" in k for k in explain.facts_for(REC, TOTALS))
     f = explain.facts_for(REC, {**TOTALS, "direct_cost_last_12m": 8000.0})
     assert f["Direct costs over the last 12 months (not staff time)"] == "$8,000"
+
+
+def test_escape_markdown_neutralises_links_images_and_html():
+    """D-35: an uploaded client name or LLM reply cannot become a link, image or HTML on the screen."""
+    out = explain.escape_markdown("![x](http://evil/p.png) [click](http://evil) <b>hi</b> costs $5")
+    import re
+    assert not re.search(r"(?<!\\)[\[\]<>!$]", out)  # every special character is escaped
+    assert out.replace("\\", "") == "![x](http://evil/p.png) [click](http://evil) <b>hi</b> costs $5"
+
+
+def test_no_new_llm_call_when_not_allowed(fake, tmp_path):
+    """D-35: past the session's explanation limit, saved texts still show; nothing new is bought."""
+    store = LabelStore(tmp_path / "e.json")
+    out = explain.write_explanation(REC, TOTALS, "m", store=store, allow_llm=False)
+    assert out["source"] == "template" and out["capped"]
+    fake.reply = "Margin was 20%, below the 30% target."
+    explain.write_explanation(REC, TOTALS, "m", store=store)
+    assert explain.write_explanation(REC, TOTALS, "m", store=store, allow_llm=False)["source"] == "saved"
+
+
+def test_memory_store_never_writes_to_disk(tmp_path, monkeypatch):
+    """D-35: labels and explanations for uploaded files stay in the browser session's memory."""
+    monkeypatch.chdir(tmp_path)
+    store = LabelStore(None)
+    store.put("k", "text")
+    store.save()
+    assert store.get("k") == "text" and list(tmp_path.iterdir()) == []

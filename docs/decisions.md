@@ -46,6 +46,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Confirmed | Yes (Pemberton check) |
 | D-33 | 2026-10-07 | Benchmark 8 and a re-run on unseen seeds 101-105 | Assumed | Yes (unseen seeds) |
 | D-34 | 2026-10-08 | Show the forecast on the screen as a trend chart with its measured error | Assumed | Yes (seed 42) |
+| D-35 | 2026-10-08 | Security for the public app: AI spending caps, no visitor data on disk, upload limit, escaping, pinned versions | Assumed | Partly (tests, local check) |
 
 ---
 
@@ -676,6 +677,23 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Seed 42: typical error 0.143 (14 percentage points) from 170 past forecasts, identical to benchmark 3; forecasts for 47 of 50 clients (3 have no 3-month margin). Example: Greenleaf Interiors Group 47%, shown as 33% to 61%; Lakeshore Clinic Ltd −18%. Generated data has no direct costs, so benchmark 3 is unchanged.
 - **Evidence:** `client_outlook` run on `data/generated` on 2026-10-08; screenshot of the local app; `tests/test_forecast.py` (`test_direct_cost_lowers_feature_margin`, `test_outlook_gives_baseline_forecast_and_measured_error`), `tests/test_app.py::test_client_detail_shows_margin_trend_and_forecast`.
 - **Related decisions:** D-06, D-21, D-31
+
+## D-35: Security for the public app: AI spending caps, no visitor data on disk, upload limit, escaping, pinned versions
+- **ID:** D-35
+- **Date:** 2026-10-08
+- **Status:** Assumed
+- **Context:** The team lead asked for a security pass before submission. The app is public with no login and spends the team's prepaid AI credits. An audit on 2026-10-08 found: no key in any commit and no unsafe code paths, but (1) no limit on AI calls, so one visitor could spend the balance with a large upload; (2) AI labels and explanations for uploaded files were saved to the server's disk, although the screen says uploads stay in the session; (3) uploads up to Streamlit's default 200 MB; (4) uploaded and AI text rendered as Markdown, so it could show links or remote images; (5) unpinned package versions.
+- **Options considered:**
+  1. Add a login or password to the app.
+  2. Turn off live AI calls on the public app entirely.
+  3. Keep the app open and fix the five findings: per-session caps on AI calls (500 new labels, 25 new explanations), session-only memory for uploads, a 20 MB upload limit, escaping of uploaded and AI text, hidden error messages and developer menu, pinned versions; write down what remains unprotected (`SECURITY.md`).
+- **Decision:** Option 3. A login would stop judges from opening the link; turning AI off would hide two of the product's features.
+- **Factors that led to it:** The real exposure is cost and a broken privacy promise, not stolen secrets. Caps per session bound the cost per visitor; the prepaid balance bounds the total.
+- **Trade-offs accepted:** Caps are per browser session, so many sessions can still spend credits up to the balance. Prompt injection can still change the wording of an explanation on the uploader's own screen. No virus scanning (files are only parsed as CSV). An agency with more than 500 new messages gets keyword labels on the public app.
+- **Expected effect:** One visitor cannot spend more than about 525 AI calls per session; nothing from a visitor's files is written to disk; the demo still spends nothing.
+- **Actual measured effect:** Not measured on the live app yet. Locally: the demo reuses all 2,601 saved labels and the first 10 clients' saved explanations with the AI unreachable; a fresh dataset with about 2,600 unsaved messages makes no AI calls and shows the limit warning; the escaped text renders without visible backslashes (screenshot). `git log --all -p` searched for key patterns: none.
+- **Evidence:** `tests/test_explain.py` (`test_escape_markdown_neutralises_links_images_and_html`, `test_no_new_llm_call_when_not_allowed`, `test_memory_store_never_writes_to_disk`), `tests/test_app.py::test_ranked_list_has_actions_and_asks_before_long_labelling`; local app check and screenshot on 2026-10-08.
+- **Related decisions:** D-14, D-15, D-25, D-26, D-28
 
 ---
 

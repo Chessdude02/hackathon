@@ -224,6 +224,9 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Client has no invoices or hours in the last 12 months | cost_engine | Not ranked (D-30) | Client listed under "Not ranked" with the reason and its profit over all the data |
 | Payment dated after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
 | Browser tab kept open across an app update | app | A result made by older code (`result_version` differs from `RESULT_VERSION`) is dropped | A note to click "Rank clients" again |
+| More than 500 new request messages in one session | app | Keyword rule for all of them, no AI calls (D-35) | A warning explaining the public limit |
+| More than 25 new AI explanations in one session | app, explain | `write_explanation(..., allow_llm=False)`: saved texts still shown, otherwise fixed wording (D-35) | "Standard wording shown because this session reached its limit" |
+| Upload larger than 20 MB | Streamlit | Refused before the app sees it (`.streamlit/config.toml`, D-35) | Streamlit's file-too-large message |
 | No direct-cost column | ingest, cost_engine | Direct cost counts as 0 (D-31) | No direct-cost columns on the screen |
 | Too little history to measure the forecast's error | forecast | `typical_error` is None (D-34) | The forecast without a range, and a note saying so |
 | LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |
@@ -415,7 +418,12 @@ names, dates without times, money rounded to cents, labour cost including
 overhead), the client's labelled requests, and an
 explanation written on opening (D-26; a note says when standard wording was used instead). `CLIENTPROFIT_DEMO_DIR` overrides the demo data folder (used by
 `tests/test_app.py`). A line at the top says the app is a demo and not for
-confidential data (D-28). If the demo folder has no `invoices.csv` (a fresh
+confidential data (D-28). Security (D-35, `SECURITY.md`): AI labels and
+explanations for uploads are kept in session memory only (`session_store`,
+`LabelStore(None)`); per-session caps `MAX_LIVE_LABELS` = 500 and
+`MAX_LIVE_EXPLANATIONS` = 25; uploaded and AI text is escaped by
+`explain.escape_markdown`; `.streamlit/config.toml` sets a 20 MB upload limit,
+hides error messages and the developer menu; `requirements.txt` pins versions. If the demo folder has no `invoices.csv` (a fresh
 deploy), `ensure_demo_data()` in `app.py` builds it once per server with the
 generator, seed 42 and 50 clients (truth goes to the sibling `truth` folder,
 which the app never reads); measured 7.0 s on 2026-10-06, files byte-identical

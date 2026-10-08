@@ -138,6 +138,13 @@ for labels. Explanations are saved the same way (`labels/saved_explanations.json
 - **Privacy:** request messages are sent to Featherless for labelling. A real
   deployment needs a data agreement or a locally run model.
 
+## Security
+
+The app is public and has no login: it is a demo, not for confidential data.
+AI use is capped per session, uploaded data is never written to the server's
+disk, uploads are limited to 20 MB, and no key is stored in the repository.
+Full list, including what is not protected: `SECURITY.md`.
+
 ## Docs
 
 - `docs/project_overview.md`: what it does, results, implications, limits.

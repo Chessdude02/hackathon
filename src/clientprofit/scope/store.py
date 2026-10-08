@@ -19,9 +19,10 @@ def label_key(message, services, model, prompt_version):
 
 class LabelStore:
     def __init__(self, path=DEFAULT_PATH):
-        self.path = Path(path)
+        """`path=None` keeps the store in memory only: nothing is written to disk (D-35)."""
+        self.path = Path(path) if path is not None else None
         self._lock = threading.Lock()
-        self._data = json.loads(self.path.read_text()) if self.path.exists() else {}
+        self._data = json.loads(self.path.read_text()) if self.path is not None and self.path.exists() else {}
 
     def get(self, key):
         return self._data.get(key)
@@ -31,6 +32,8 @@ class LabelStore:
             self._data[key] = label
 
     def save(self):
+        if self.path is None:
+            return
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(json.dumps(self._data, indent=0, sort_keys=True) + "\n")

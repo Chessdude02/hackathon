@@ -17,8 +17,12 @@ sys.path.insert(1, str(ROOT))  # for generator/, used only to build missing demo
 from clientprofit import config, explain, ingest, pipeline, recommend, schema, validate  # noqa: E402
 from clientprofit.forecast.outlook import client_outlook  # noqa: E402
 from clientprofit.scope.registry import get_detector, services_by_client  # noqa: E402
+from clientprofit.scope.store import LabelStore  # noqa: E402
 
 ASK_BEFORE_LABELLING = 200   # more new messages than this: show the time and ask first (D-15)
+# D-35: the public app spends the team's AI credits, so each browser session has a ceiling.
+MAX_LIVE_LABELS = 500        # more new messages than this: keyword rule only, no AI calls
+MAX_LIVE_EXPLANATIONS = 25   # new AI explanations per session; saved ones do not count
 SECONDS_PER_MESSAGE = 0.8    # measured 2026-10-06, 2 calls at a time (D-15)
 ACTION_ICON = {recommend.KEEP: "✅", recommend.RAISE: "💲", recommend.CUT: "✂️", recommend.END: "🛑"}
 DEMO = Path(os.environ.get("CLIENTPROFIT_DEMO_DIR", ROOT / "data" / "generated"))
@@ -176,10 +180,16 @@ def scope_section(result, cfg):
                "so treat labels as prompts to review, not facts. Message text is sent to the AI provider.")
     if st.session_state.get("labels") is not None:
         return st.session_state.labels
-    detector = get_detector(cfg["scope"]["detector"], cfg)
+    name = cfg["scope"]["detector"]
+    detector = get_detector(name, cfg, store=session_store("labels")) if name == "llm" else get_detector(name, cfg)
     services = services_by_client(result["tables"])
     new = detector.count_new(req, services) if hasattr(detector, "count_new") else 0
-    if new > ASK_BEFORE_LABELLING and not st.session_state.get("label_go"):
+    if new > MAX_LIVE_LABELS:
+        st.warning(f"{new} messages have not been labelled before. This public demo labels at most "
+                   f"{MAX_LIVE_LABELS} new messages with AI per session, so the simple keyword rule labels "
+                   "them instead. Run the app yourself with your own key to use AI labels.")
+        detector, new = get_detector("keyword"), 0
+    elif new > ASK_BEFORE_LABELLING and not st.session_state.get("label_go"):
         st.warning(f"{new} messages have not been labelled before. That takes about "
                    f"{new * SECONDS_PER_MESSAGE / 60:.0f} minutes. The ranking above does not wait for it.")
         if st.button("Label them now"):
@@ -205,8 +215,7 @@ def labels_summary(labels):
 
 
 def md(text):
-    """Escape $ so Streamlit markdown does not read money as a maths formula."""
-    return str(text).replace("$", "\\$")
+    return explain.escape_markdown(text)
 
 
 EFFECT_WORDS = {recommend.RAISE: "+{} profit a year", recommend.CUT: "saves {} a year",
@@ -217,10 +226,10 @@ def recommendation_box(rec):
     icon = ACTION_ICON.get(rec["action"], "")
     words = EFFECT_WORDS.get(rec["action"])
     effect = f" ({words.format(money(rec['dollar_effect_per_year']))})" if words else ""
-    st.markdown(md(f"#### {icon} Suggested action: {rec['action']}{effect}"))
+    st.markdown(f"#### {icon} " + md(f"Suggested action: {rec['action']}{effect}"))
     st.markdown(md(rec["why"]))
     if isinstance(rec.get("alternative"), str) and rec["alternative"]:
-        st.markdown(md(f"**{rec['alternative']}**"))
+        st.markdown("**" + md(rec["alternative"]) + "**")
     if rec["heading_to_loss"]:
         st.warning("Heading toward a loss: profitable over 12 months, but the last 3 months are below zero "
                    "or close to zero and falling.")
@@ -232,13 +241,19 @@ def explanation_box(rec, totals, cfg):
     """Two or three sentences from the LLM using only computed numbers (D-26)."""
     key = ("explanation", rec["client"], rec["action"], round(rec["dollar_effect_per_year"], 2))
     if key not in st.session_state:
+        used = st.session_state.get("live_explanations", 0)
         with st.spinner("Writing a plain-language explanation…"):
-            st.session_state[key] = explain.write_explanation(rec, totals, cfg["llm"]["model"],
-                                                              cfg["llm"]["provider"])
+            st.session_state[key] = explain.write_explanation(
+                rec, totals, cfg["llm"]["model"], cfg["llm"]["provider"], store=session_store("explanations"),
+                allow_llm=used < MAX_LIVE_EXPLANATIONS)
+        if st.session_state[key]["source"] == "llm" or st.session_state[key].get("error"):
+            st.session_state.live_explanations = used + 1
     out = st.session_state[key]
     st.info(md(out["text"]), icon="💬")
     if out["source"] == "template":
         reason = ("the AI was unavailable" if out.get("error")
+                  else f"this session reached its limit of {MAX_LIVE_EXPLANATIONS} AI explanations"
+                  if out.get("capped")
                   else f"the AI's text used numbers not in the figures ({', '.join(out['invented'])})")
         st.caption(f"Standard wording shown because {reason}.")
     else:
@@ -260,6 +275,18 @@ def readable(rows, names):
     if "AI label" in out.columns:
         out["AI label"] = out["AI label"].map(lambda v: LABEL_WORDS.get(v, v))
     return out
+
+
+def session_store(kind):
+    """Where AI labels and explanations are kept (D-35). Demo data: the saved files shipped with the
+    repo, so nothing is paid for twice. Uploads: this browser session's memory only, so nothing from
+    a visitor's files is written to the server's disk."""
+    if st.session_state.get("source") == "demo":
+        return LabelStore() if kind == "labels" else LabelStore(explain.EXPLANATIONS_PATH)
+    key = f"memory_store_{kind}"
+    if key not in st.session_state:
+        st.session_state[key] = LabelStore(None)
+    return st.session_state[key]
 
 
 def outlook_box(result, client, settings):

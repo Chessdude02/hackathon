@@ -20,6 +20,15 @@ SYSTEM = (
 NUMBER = re.compile(r"[-−]?\$?\d[\d,]*(?:\.\d+)?%?")
 
 
+def escape_markdown(text):
+    """Show text from uploads or the LLM as plain text on the screen (D-35): escape the characters
+    that make links, images, HTML or formatting, and $ (Streamlit reads $...$ as a maths formula)."""
+    text = str(text)
+    for ch in "\\`*_[]<>!#|~$":
+        text = text.replace(ch, "\\" + ch)
+    return text
+
+
 def money(v):
     return f"-${-v:,.0f}" if v < 0 else f"${v:,.0f}"
 
@@ -102,14 +111,17 @@ def prompt_for(facts):
     return "Facts:\n" + "\n".join(f"- {k}: {v}" for k, v in facts.items()) + "\n\nExplanation:"
 
 
-def write_explanation(rec, totals, model, provider="featherless", store=None):
-    """Return {text, source, invented}: source is "saved", "llm" or "template"."""
+def write_explanation(rec, totals, model, provider="featherless", store=None, allow_llm=True):
+    """Return {text, source, invented}: source is "saved", "llm" or "template".
+    With `allow_llm=False` a saved text is still used, but no new LLM call is made (D-35)."""
     facts = facts_for(rec, totals)
     store = store if store is not None else LabelStore(EXPLANATIONS_PATH)
     key = label_key(prompt_for(facts), "", model, PROMPT_VERSION)
     saved = store.get(key)
     if saved:
         return {"text": saved, "source": "saved", "invented": []}
+    if not allow_llm:
+        return {"text": template_text(rec), "source": "template", "invented": [], "capped": True}
     try:
         text = complete(prompt_for(facts), model, provider, system=SYSTEM, max_tokens=180).strip()
     except Exception:  # provider down or anything else: never block the screen

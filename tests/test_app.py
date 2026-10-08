@@ -46,8 +46,9 @@ def test_ranked_list_has_actions_and_asks_before_long_labelling(demo_dir, monkey
     assert rows and all("_src_row" not in d.columns for d in rows)
     dates = rows[0].iloc[:, 2].astype(str)
     assert not dates.str.contains("00:00:00").any()
-    # Fresh data: no saved labels, so the screen asks instead of making ~2,000 live calls (D-15)
-    assert any(b.label == "Label them now" for b in at.button)
+    # Fresh data: about 2,600 unsaved messages, above the public limit, so no AI calls at all (D-35)
+    assert not any(b.label == "Label them now" for b in at.button)
+    assert any("labels at most 500 new messages" in w.value for w in at.warning)
     assert any("Suggested action" in m.value for m in at.markdown)
 
 

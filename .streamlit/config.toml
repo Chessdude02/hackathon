@@ -1,0 +1,17 @@
+# Settings for the public app (D-35).
+
+[server]
+# Largest file a visitor can upload, in MB (Streamlit's default is 200).
+maxUploadSize = 20
+# Defaults, written down so they are not switched off by accident.
+enableXsrfProtection = true
+enableCORS = true
+
+[client]
+# Show where an error happened, never the error message, which can contain uploaded data.
+showErrorDetails = "stacktrace"
+# Hide developer options (rerun, clear cache, deploy) from visitors.
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false
