@@ -9,6 +9,20 @@ from generator.generate import generate
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
 
 
+@pytest.fixture(autouse=True)
+def no_real_ai_calls(monkeypatch):
+    """Tests never spend AI credits or add to the saved files: every AI call fails at once, so the
+    app falls back to the keyword rule and fixed wording."""
+    from clientprofit import explain, llm
+    from clientprofit.scope import llm_detector
+
+    def offline(*args, **kwargs):
+        raise llm.LLMError("AI calls are switched off in tests")
+    for module in (llm, explain, llm_detector):
+        if hasattr(module, "complete"):
+            monkeypatch.setattr(module, "complete", offline)
+
+
 @pytest.fixture(scope="module")
 def demo_dir(tmp_path_factory):
     base = tmp_path_factory.mktemp("demo")
