@@ -10,7 +10,7 @@ import re
 from clientprofit.llm import complete
 from clientprofit.scope.store import LabelStore, label_key
 
-PROMPT_VERSION = "explain-v2"  # v2: contribution and overhead facts (D-36)
+PROMPT_VERSION = "explain-v3"  # v2: contribution and overhead facts (D-36); v3: margin label made unambiguous
 SYSTEM = (
     "You explain one client's numbers to the owner of a small agency, in two or three short, plain "
     "sentences. Use ONLY the facts given. Copy every number exactly as written, including $ and %. "
@@ -53,7 +53,7 @@ def facts_for(rec, totals):
         "Target margin": pct(rec["target_margin"]),
     }
     if rec.get("margin_3m") is not None and rec["margin_3m"] == rec["margin_3m"]:
-        f["Margin over the last 3 months"] = pct(rec["margin_3m"])
+        f["Profit margin over the last 3 months, after shared overhead (not the contribution)"] = pct(rec["margin_3m"])
     if rec["action"] != "keep as is":
         f["Effect of the action per year"] = money(rec["dollar_effect_per_year"])
     if rec["action"] in ("raise price", "end the contract") and rec.get("price_rise_needed") is not None \

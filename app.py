@@ -276,6 +276,7 @@ def explanation_box(rec, totals, cfg):
         reason = ("the AI was unavailable" if out.get("error")
                   else f"this session reached its limit of {MAX_LIVE_EXPLANATIONS} AI explanations"
                   if out.get("capped")
+                  else "the AI's reply was unreadable" if out.get("broken")
                   else f"the AI's text used numbers not in the figures ({', '.join(out['invented'])})")
         st.caption(f"Standard wording shown because {reason}.")
     else:
