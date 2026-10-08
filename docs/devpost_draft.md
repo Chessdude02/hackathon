@@ -52,8 +52,9 @@ The owner makes every decision. The tool never acts on its own.
   wording instead (0 invented numbers in 48 explanations).
 - **Forecast:** we trained LightGBM to predict next quarter's margin and
   compared it to a simple "next quarter looks like the last one" baseline. The
-  baseline won (error 0.143 vs 0.172, and on all 3 datasets), so the baseline
-  ships.
+  baseline won (error 0.143 vs 0.172, and on all 8 datasets we tried), so
+  the app does not forecast at all: each client gets a margin trend with next
+  quarter "if nothing changes" vs "after the suggested action".
 - **Data:** no real agency data was available, so we built a generator that
   creates a realistic agency (50 clients, 24 months) with planted patterns:
   clients that look big but lose money, slow payers, growing scope creep,

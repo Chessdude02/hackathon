@@ -54,6 +54,14 @@ box, then the explanation.
 > stopping or billing them saves about fifty-two thousand dollars a year in
 > staff time. Notice we don't count rent or software as saved: those stay
 > whatever you do with one client."
+
+On screen: scroll to the chart under the explanation (grey dot about −18%,
+green dot about 19%, dashed target line at 30%).
+
+> "The chart shows where the client is heading and what the suggestion would
+> change: from minus eighteen percent to about nineteen. We tested forecasting
+> models and none beat 'next quarter looks like the last one', so we don't
+> pretend to predict."
 > The AI writes a short explanation, but it never does the maths. Our code
 > computes every number, and a check throws out any sentence with a number
 > that isn't in our figures."
@@ -87,7 +95,8 @@ On screen: scroll to **Scope-creep signals (beta)**.
 
 - Don't say it was tested on real agencies. It wasn't (unless D's agency call
   happens; then quote them by permission only).
-- Don't say "AI predicts which clients will lose money". The forecast that
-  ships is a simple baseline, because the AI model lost.
+- Don't say "AI predicts which clients will lose money" or "forecasts". The app
+  shows a trend and the effect of the suggested action, because no forecasting
+  model beat "no change".
 - Don't say "100% accurate". The 15 of 15 result is on generated data, and the
   test is nearly circular.

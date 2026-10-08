@@ -62,7 +62,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **File loading and column mapping** | Reads CSV files with messy headers ("Amt", "Customer:Job", "Paid at") and suggests which column means what. The owner confirms or corrects every suggestion. | Built |
 | **Client name matching** | Treats "ACME LTD", "Acme Ltd" and "Acme" as one client, and reports every merge so the owner can catch a wrong one. | Built |
 | **Problem report** | Finds unreadable values, staff without a cost, negative hours, duplicate invoices, clients with hours but no invoices, and months with work but no invoice. **Never drops a row on its own.** The owner ticks what to exclude. | Built |
-| **Cost engine** | Works out, for every client and month: revenue, labour cost, cost of late payment, and profit. Plain arithmetic, no AI. Every figure lists the input rows behind it. | Built, matches a hand calculation exactly |
+| **Cost engine** | Works out, for every client and month: revenue, direct costs, staff cost, cost of late payment, **contribution** (before shared overhead), the client's **share of overhead** and **profit** (D-36). Plain arithmetic, no AI. Every figure lists the input rows behind it. | Built, matches a hand calculation exactly |
 | **Ranking** | Ranks clients by profit over the last 12 months. Clients with under 3 months of data are listed apart as "not enough history" instead of being ranked. | Built |
 | **Worst-case profit** | For each client, also shows profit if invoices more than 90 days overdue are never paid. | Built |
 | **Request labeller** | Labels each client message as routine work, extra unpaid work, or unclear, using an AI model (Featherless, Qwen 2.5 14B) and the client's list of services. Saves every label so the same message is never sent twice. Shown as a suggestion to review. | Built |
@@ -74,7 +74,7 @@ money, which are heading toward a loss, and what should I do about each one?**
 | **Screen** | Streamlit app: data source, column check, settings, problems, ranked list with actions and warnings, scope-creep signals with progress, client detail. Requests and services are optional. | Built (rough) |
 | **Data generator** | Creates a realistic fake agency (50 clients, 24 months) with planted patterns, because no real data was available. | Built |
 | **Benchmarks** | One script runs the benchmarks and writes the numbers to a file. | Built (all 7) |
-| **Tests** | 128 automated tests, including one for every cost calculation. | Built, all passing |
+| **Tests** | 155 automated tests, including one for every cost calculation. | Built, all passing |
 
 ### 4.2 Planned (days 4 to 6)
 
@@ -154,7 +154,7 @@ accurate on real businesses.
 | 4 | Message labeller vs 150 messages labelled by a teammate | Keyword + services **0.76** accuracy, AI **0.73 to 0.75** | The AI ties a keyword rule on our generated messages. It does not beat it. The keyword rule's lead is partly circular (its word list overlaps the generator's). |
 | 5 | Column mapping on 10 header styles | **172 of 172** | Meaningless as it stands: the same person wrote the test headers and the word list. Needs real export headers. |
 | 6 | No invented numbers in explanations | **0 of 48** AI texts contained an invented number; 0 reached the screen | The check proves numbers are not made up. It cannot prove each number is described correctly (we saw "48%, closer to the 30% target" when 48% is above it). |
-| 8 | Suggested actions vs planted client types (5 unseen seeds, D-33) | "End" only on planted loss-makers **9 of 9**; active loss-makers given an action **49 of 49**; healthy clients never told to cut or end **66 of 66**; warnings on problem clients **18 of 18**, but late-trouble clients warned only **4 of 41** | The rules are safe (no wrong "end") but the warning is late: it fires once the margin is already near zero. Seed 42, used for tuning, looked perfect; new seeds showed the weakness. |
+| 8 | Suggested actions vs planted client types (5 unseen seeds, D-33, rerun after D-36) | Active loss-makers given an action **49 of 49**; healthy clients never told to cut or end **66 of 66**; warnings on problem clients **18 of 18**, but late-trouble clients warned only **4 of 41**. Since overhead is separated (D-36), "end the contract" fired **once in 8 datasets**, on a planted loss-maker | The rules are safe (no wrong "end") but the warning is late: it fires once the margin is already near zero. Seed 42, used for tuning, looked perfect; new seeds showed the weakness. |
 | 7 | Speed, upload to ranked list, 50 clients | **About 1 second** (target: under 60) | Fast enough. Labelling new messages is timed separately; all 2,601 demo messages took 33 minutes once, then 2.5 seconds when reused. |
 
 **Two of our three AI components lost to simple baselines.** We kept the
@@ -214,7 +214,7 @@ what was measured.
 - **No real data yet.** Every result after benchmark 1 comes from data we
   generated. Real agencies may record time differently, bill differently, or
   write messages that look nothing like ours.
-- **Garbage in, garbage out.** If hourly costs or the overhead multiplier are
+- **Garbage in, garbage out.** If hourly costs or the overhead figure are
   wrong, every profit figure is wrong in the same direction. The tool shows the
   settings it used so the owner can check them.
 - **"Unclear" is common and genuine.** Our human labeller agreed with the
@@ -267,7 +267,7 @@ what was measured.
 | `src/clientprofit/` | The product code: loading, validation, cost engine, labeller, forecast, AI wrapper |
 | `generator/` | The fake-agency generator (never imported by product code) |
 | `scripts/` | Command-line tools: generate data, run the pipeline, label requests, build the message bank, run benchmarks |
-| `tests/` | 100 automated tests and the hand-calculation files |
+| `tests/` | 155 automated tests and the hand-calculation files |
 | `labelling/` | The 150-message sheet, blank and hand-labelled |
 | `labels/saved_labels.json` | Saved AI labels for the demo data |
 | `docs/decisions.md` | Every decision and its evidence |

@@ -29,7 +29,7 @@ works, not that it is accurate on real businesses.
 |---|---|---|
 | 1 | Cost engine vs a hand calculation done by a teammate (10 clients) | Exact match on all 29 client-months and 10 totals |
 | 2 | Are the planted loss-making clients at the bottom? | All 15 planted loss-makers are the 15 lowest by profit; ranking by revenue finds only 3. Same on 2 more datasets (12/12 vs 4/12, 15/15 vs 3/15). Nearly circular: the planted "loss-making" label uses the same profit rule as the engine. |
-| 3 | Forecast error, next quarter's margin | Simple baseline 0.143 vs LightGBM 0.172. LightGBM lost on all 3 datasets, so **the baseline ships**. |
+| 3 | Forecast error, next quarter's margin | Simple baseline ("next quarter = last quarter") 0.143 vs LightGBM 0.172. LightGBM lost on all 8 datasets (closest: 0.132 vs 0.134), so **the app does not forecast**: it shows the trend and the effect of the suggested action (D-37). |
 | 4 | Request labeller vs 150 messages labelled by a teammate | Keyword rule 0.76 accuracy, LLM 0.73 to 0.75. The LLM ties a keyword rule; it ships as a reviewed suggestion. |
 | 5 | Column mapping on 10 header styles | 172 of 172, but circular (same author wrote headers and word list). Real export headers pending. |
 | 6 | Explanations with an invented number | 0 of 48 |
@@ -99,7 +99,7 @@ Other commands:
 python scripts/generate_data.py --out data/generated --seed 42   # demo data
 python scripts/run_pipeline.py --data data/generated --out out/   # no screen
 python scripts/run_benchmarks.py                                  # out/benchmarks.json
-pytest                                                            # 128 tests
+pytest                                                            # 155 tests
 ```
 
 Full list with options: `docs/execution.md` section 1.

@@ -177,16 +177,18 @@ def overhead_note(result):
     """D-36: what the two profit columns mean, how overhead was split, and how the clients add up."""
     o, rk = result.get("overhead", {}), result["ranked"]
     how = (f"your {money(o['per_year'])} a year of shared overhead, split by logged hours "
-           f"({money(o['rate_per_hour'])} an hour)" if o.get("rate_per_hour") is not None
+           f"(${o['rate_per_hour']:,.2f} an hour)" if o.get("rate_per_hour") is not None
            else f"staff cost × {o.get('multiplier', 1):.2f} as an estimate of shared overhead (enter your real "
                 "yearly overhead in Settings to replace it)")
     contribution, overhead = rk["contribution_last_12m"].sum(), rk["overhead_last_12m"].sum()
+    other = result["unranked"]["overhead_last_12m"].sum() if len(result["unranked"]) else 0.0
     return (f"Contribution = revenue minus the client's own costs (staff time, direct costs, late payment): "
             f"what you would lose without it. Profit also takes off its share of overhead, using {how}. "
             f"'End the contract' and 'cut scope' use contribution, because shared overhead stays when "
             f"a client or its work goes; 'raise price' uses profit. Ranked clients, last 12 months: "
             f"contribution {money(contribution)} − overhead {money(overhead)} = profit "
-            f"{money(contribution - overhead)}.")
+            f"{money(contribution - overhead)}."
+            + (f" Clients not ranked carry the other {money(other)} of overhead." if round(other) else ""))
 
 
 def scope_section(result, cfg):
