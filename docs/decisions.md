@@ -45,6 +45,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-31 | 2026-10-07 | Optional direct-cost column on invoices | Confirmed | Yes (Pemberton check) |
 | D-32 | 2026-10-07 | Outside synthetic dataset (Pemberton) used as a test only | Confirmed | Yes (Pemberton check) |
 | D-33 | 2026-10-07 | Benchmark 8 and a re-run on unseen seeds 101-105 | Assumed | Yes (unseen seeds) |
+| D-34 | 2026-10-08 | Show the forecast on the screen as a trend chart with its measured error | Assumed | Yes (seed 42) |
 
 ---
 
@@ -658,6 +659,23 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Seeds 101 to 105 combined: benchmark 2 bottom K 55 of 56 by profit vs 18 of 56 by revenue (seed 103: 10 of 11); benchmark 3 baseline MAE 0.118 to 0.132 vs LightGBM 0.135 to 0.158, baseline better on all 5; benchmark 7 0.57 to 0.71 s. Benchmark 8: "end the contract" on planted loss-makers 9 of 9; active loss-makers given an action other than keep 49 of 49; churned loss-makers shown as keep 7 of 7; planted healthy never told cut or end 66 of 66, kept 56 of 66 (the other 10 are below the 30% target, so "raise price" is the rule working); warnings on planted problem clients 18 of 18; late-trouble clients warned 4 of 41 (most still had 10% to 50% margins in the last 3 months). Seed 42 for comparison: 15 of 15, 6 of 6, 10 of 10, 10 of 10, 4 of 4, and 4 of 13.
 - **Evidence:** `python scripts/run_benchmarks.py --seeds-only --seeds 101 102 103 104 105 --out out/benchmarks_unseen.json`, 2026-10-07; seed 42 from `bench8` on `data/generated` the same day.
 - **Related decisions:** D-06, D-21, D-24, D-27
+
+## D-34: Show the forecast on the screen as a trend chart with its measured error
+- **ID:** D-34
+- **Date:** 2026-10-08
+- **Status:** Assumed
+- **Context:** The forecast (D-06, D-21) was built and benchmarked but never shown, so the product description's "forecast" was not visible to a user. The forecast that ships is the baseline (last 3 months' margin carried forward), so a single number would only repeat what the screen already shows. The forecast features also ignored direct costs (D-31).
+- **Options considered:**
+  1. Leave the forecast off the screen and drop it from the description.
+  2. Add a "forecast" column to the ranked list.
+  3. In client detail, a chart of the client's 3-month margin over time with the target line and next quarter's forecast drawn as a range: ± the forecast's mean absolute error, measured on the loaded data with the benchmark 3 time split.
+- **Decision:** Option 3, asked for by the team lead on 2026-10-08 (feature-freeze day). Built with Streamlit's built-in chart (no new library). The caption says the forecast is the last 3 months carried forward and that a machine-learning model was less accurate. Forecast features now subtract direct costs.
+- **Factors that led to it:** A range is honest about how uncertain the rule is (brief: show uncertainty). Measuring the error on the owner's own data, not ours, makes the range mean something for that business. Option 2 would duplicate the 3-month margin.
+- **Trade-offs accepted:** One error figure for all clients, though small or noisy clients are less predictable. The chart's margin leaves out late-payment cost (D-21), so it can differ slightly from the 12-month figures. Built on freeze day, so it had less use before recording.
+- **Expected effect:** The owner sees the direction of each client and how far to trust the next-quarter figure.
+- **Actual measured effect:** Seed 42: typical error 0.143 (14 percentage points) from 170 past forecasts, identical to benchmark 3; forecasts for 47 of 50 clients (3 have no 3-month margin). Example: Greenleaf Interiors Group 47%, shown as 33% to 61%; Lakeshore Clinic Ltd −18%. Generated data has no direct costs, so benchmark 3 is unchanged.
+- **Evidence:** `client_outlook` run on `data/generated` on 2026-10-08; screenshot of the local app; `tests/test_forecast.py` (`test_direct_cost_lowers_feature_margin`, `test_outlook_gives_baseline_forecast_and_measured_error`), `tests/test_app.py::test_client_detail_shows_margin_trend_and_forecast`.
+- **Related decisions:** D-06, D-21, D-31
 
 ---
 

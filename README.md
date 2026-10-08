@@ -64,7 +64,11 @@ Diagram: `docs/architecture.md`. In short:
 5. **Recommend:** fixed rules on the last 3 months. "End the contract" only
    when the client loses money over 12 months and 3 months, cutting unbilled
    work would not fix it, and the price rise needed is over 50%.
-6. **LLM (Featherless, Qwen 2.5 14B), two jobs only:** label client requests
+6. **Forecast:** each client's margin trend with next quarter's margin, shown
+   as a range: the typical error is measured on the owner's own data. The
+   forecast is "last 3 months carried forward", because a LightGBM model was
+   less accurate in every test.
+7. **LLM (Featherless, Qwen 2.5 14B), two jobs only:** label client requests
    (in scope / extra unpaid / unclear) and write the explanation sentences.
    The LLM never does arithmetic. Code formats every number; a check rejects
    any text with a number that is not in the facts and shows fixed wording instead.

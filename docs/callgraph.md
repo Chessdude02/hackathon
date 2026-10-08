@@ -52,6 +52,11 @@ clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.feat
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.fit -> clientprofit.forecast.lightgbm_model.ROUNDS
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.importance -> clientprofit.features.FEATURES
 clientprofit.forecast.lightgbm_model.LightGBMForecaster.predict -> clientprofit.features.FEATURES
+clientprofit.forecast.outlook.client_outlook -> clientprofit.features.build_features
+clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.evaluate.evaluate
+clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.evaluate.time_split
+clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.outlook.MIN_TEST_ROWS
+clientprofit.forecast.outlook.client_outlook -> clientprofit.forecast.registry.get_forecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.baseline.BaselineForecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster
 clientprofit.forecast.registry.get_forecaster -> clientprofit.forecast.lightgbm_model.LightGBMForecaster.__init__
@@ -196,4 +201,4 @@ clientprofit.validate.validate_inputs -> clientprofit.validate._staff_costs
 clientprofit.validate.validate_inputs -> clientprofit.validate._unreadable
 ```
 
-190 call edges.
+195 call edges.

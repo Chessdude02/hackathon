@@ -214,7 +214,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | What goes wrong | Where | What the code does | What the user sees |
 |---|---|---|---|
 | A required column cannot be mapped | ingest | Stops | The mapping screen, with the missing column marked |
-| LLM call fails during column mapping | ingest | Falls back to `propose_mapping` | The suggested mapping, to confirm or correct by hand |
+| A header is not in the word list | ingest | `propose_mapping` leaves it unmapped (there is no LLM column mapping; D-19) | The mapping screen, to map it by hand |
 | A required column is not mapped | ingest | `missing_required` lists it; the run cannot start | The mapping screen with the missing column named |
 | A staff member has no hourly cost | cost_engine | Stops with `CostEngineError` naming the staff | The name of the staff member and where to set the cost |
 | A required value is empty or unreadable (client, dates, amount, staff, hours) | cost_engine | Stops with `CostEngineError` listing the row numbers | The rows to fix or exclude in the validation step |
@@ -225,7 +225,7 @@ The generator's truth file (`data/truth/truth_seed<seed>.json`) is read only by 
 | Payment dated after the last invoice or work date, or in the future | validate | Warning; the payment still counts on its date; it does not move the as-of date (D-29) | The rows, to check |
 | Browser tab kept open across an app update | app | A result made by older code (`result_version` differs from `RESULT_VERSION`) is dropped | A note to click "Rank clients" again |
 | No direct-cost column | ingest, cost_engine | Direct cost counts as 0 (D-31) | No direct-cost columns on the screen |
-| Forecast model fails or is not available | forecast | Uses the baseline | A note that the baseline was used |
+| Too little history to measure the forecast's error | forecast | `typical_error` is None (D-34) | The forecast without a range, and a note saying so |
 | LLM call fails during request labelling | scope | Keyword label for that message; after 5 failures in a row, keyword labels for the rest (D-25) | The count of keyword-labelled messages under the labels summary |
 | More than 200 new messages to label | app | Does not start labelling | The expected time and a "Label them now" button |
 | No requests file | app | Skips labelling | A note that scope-creep signals are off; ranking and actions still shown |
@@ -408,7 +408,8 @@ when the data has any (D-31), suggested action, effect per year and "heading
 to a loss" (D-24), a time-log warning, unranked clients apart with the reason (D-30), then "Scope-creep
 signals (beta)": labels from saved labels or live with a progress bar (asks
 first above 200 new messages), after which the table refreshes with labels,
-and (5) client detail: the suggested action, reason and alternative, monthly
+and (5) client detail: the suggested action, reason and alternative, a margin
+trend chart with next quarter's forecast and its typical error (D-34), monthly
 figures, the rows behind each month (shown by `readable()`: plain column
 names, dates without times, money rounded to cents, labour cost including
 overhead), the client's labelled requests, and an
@@ -436,18 +437,21 @@ bank when the file exists (`message_source` in the truth file says which).
 `labelling/label_sheet_seed42.xlsx` and `.csv` are the seed 42 label sheet
 made from it.
 
-## 16. Features and forecast (Verified on 2026-10-06)
+## 16. Features and forecast (Verified on 2026-10-08)
 
 | Function / class | File | What it does |
 |---|---|---|
-| `build_features(result, horizon=3)` | `features.py` | One row per client-month: features from that month and earlier (`FEATURES`), plus `target_margin` and `target_revenue` for the next 3 months. Operating margin, no late cost (D-21) |
+| `build_features(result, horizon=3)` | `features.py` | One row per client-month: features from that month and earlier (`FEATURES`), plus `target_margin` and `target_revenue` for the next 3 months. Operating margin: revenue − direct cost − labour cost, no late cost (D-21, D-31) |
 | `BaselineForecaster` | `forecast/baseline.py` | Predicts `margin_3m` |
 | `LightGBMForecaster` | `forecast/lightgbm_model.py` | Predicts the change from `margin_3m` with LightGBM's own API |
 | `get_forecaster(name, seed=42)` | `forecast/registry.py` | `baseline` or `lightgbm` |
 | `time_split(features, test_months=6, horizon=3)`, `evaluate(...)`, `mae(...)` | `forecast/evaluate.py` | Benchmark 3 split and score |
+| `client_outlook(result, settings)` | `forecast/outlook.py` | Features, plus per client the `forecast.model` forecast of next quarter's margin and its typical error (mean absolute error with the benchmark 3 split on the loaded data; none below `MIN_TEST_ROWS` = 20 past forecasts) (D-34) |
 
 Gate result (D-06, D-21): the baseline wins, so `forecast.model` is `baseline`.
-The forecast is not shown on the screen yet.
+The screen shows it in client detail (`outlook_box` in `app.py`): the client's 3-month margin over
+time, the target as a dashed line, and next quarter's forecast with a bar of ± the typical error.
+On seed 42 the typical error is 0.143 from 170 past forecasts, the same as benchmark 3 (D-34).
 
 ## 17. Request labelling (Verified on 2026-10-06)
 

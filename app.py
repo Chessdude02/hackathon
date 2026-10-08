@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(1, str(ROOT))  # for generator/, used only to build missing demo data (D-28)
 
 from clientprofit import config, explain, ingest, pipeline, recommend, schema, validate  # noqa: E402
+from clientprofit.forecast.outlook import client_outlook  # noqa: E402
 from clientprofit.scope.registry import get_detector, services_by_client  # noqa: E402
 
 ASK_BEFORE_LABELLING = 200   # more new messages than this: show the time and ask first (D-15)
@@ -261,6 +262,55 @@ def readable(rows, names):
     return out
 
 
+def outlook_box(result, client, settings):
+    """3-month margin over time, the target, and next quarter's forecast with its typical error (D-34)."""
+    if st.session_state.get("outlook_for") is not id(result):
+        st.session_state.outlook = client_outlook(result, settings)
+        st.session_state.outlook_for = id(result)
+    features, out = st.session_state.outlook
+    hist = features[(features["client"] == client) & features["margin_3m"].notna()]
+    o = out.get(client, {})
+    if hist.empty or o.get("forecast") is None:
+        return
+    st.markdown("**Margin trend and next quarter**")
+    rows = [{"date": m.end_time.strftime("%Y-%m-01"), "margin": v, "series": "Margin, last 3 months"}
+            for m, v in zip(hist["month"], hist["margin_3m"])]
+    nxt = (hist["month"].max() + 2).end_time.strftime("%Y-%m-01")  # middle of next quarter
+    err, f = o["typical_error"], o["forecast"]
+    point = {"date": nxt, "margin": f, "series": "Next quarter (forecast)",
+             "low": f - err if err is not None else f, "high": f + err if err is not None else f}
+    target = settings["target_margin"]
+    names = ["Margin, last 3 months", "Next quarter (forecast)"]
+    color = {"field": "series", "type": "nominal", "title": None,
+             "scale": {"domain": names, "range": ["#1f77b4", "#e4572e"]}}
+    link = [rows[-1] | {"series": names[1]}, point]
+    x = {"field": "date", "type": "temporal", "title": None, "axis": {"format": "%b %Y"}}
+    st.vega_lite_chart({
+        "height": 260,
+        "layer": [
+            {"data": {"values": rows}, "mark": {"type": "line", "point": True},
+             "encoding": {"x": x,
+                          "y": {"field": "margin", "type": "quantitative", "axis": {"format": "%"}, "title": "Margin"},
+                          "color": color}},
+            {"data": {"values": link}, "mark": {"type": "line", "strokeDash": [3, 3]},
+             "encoding": {"x": x, "y": {"field": "margin", "type": "quantitative"}, "color": color}},
+            {"data": {"values": [point]}, "mark": {"type": "rule", "strokeWidth": 8, "opacity": 0.3},
+             "encoding": {"x": x, "y": {"field": "low", "type": "quantitative"},
+                          "y2": {"field": "high"}, "color": color}},
+            {"data": {"values": [point]}, "mark": {"type": "point", "filled": True, "size": 120},
+             "encoding": {"x": x, "y": {"field": "margin", "type": "quantitative"}, "color": color}},
+            {"data": {"values": [{"t": target}]}, "mark": {"type": "rule", "strokeDash": [4, 4], "color": "gray"},
+             "encoding": {"y": {"field": "t", "type": "quantitative"}}},
+        ]}, width="stretch")
+    range_text = (f" On your data, this simple rule was off by {err:.0%} points on average over the last "
+                  f"{settings['forecast']['test_months']} months, so read it as {f - err:.0%} to {f + err:.0%}."
+                  if err is not None else " There is not enough history yet to say how far off it usually is.")
+    st.caption(f"Grey dashed line: your {target:.0%} target. Next quarter, if nothing changes: about {f:.0%} "
+               f"margin (the last 3 months carried forward; margin here leaves out late-payment cost)."
+               + range_text + " A machine-learning forecast was tested and was less accurate (D-06), so this "
+               "simple rule is used.")
+
+
 def client_detail(result, recs, labels, cfg):
     clients = list(result["ranked"]["client"]) + list(result["unranked"]["client"])
     client = st.selectbox("Client detail", clients, key="detail_client")
@@ -269,6 +319,7 @@ def client_detail(result, recs, labels, cfg):
         recommendation_box(rec.iloc[0].to_dict())
         totals = result["totals"].set_index("client").loc[client].to_dict()
         explanation_box(rec.iloc[0].to_dict(), totals, cfg)
+        outlook_box(result, client, cfg)
     else:
         reason = result["unranked"].set_index("client").loc[client, "not_ranked_because"]
         st.info(f"Not ranked and no action suggested: {reason}.")
@@ -388,7 +439,7 @@ def main():
                            hide_index=True, width="stretch")
     recs = recommend.recommend_actions(result, settings, new_labels)
     st.header("5. Client detail")
-    client_detail(result, recs, new_labels, cfg)
+    client_detail(result, recs, new_labels, settings)
 
 
 main()

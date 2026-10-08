@@ -77,3 +77,15 @@ def test_result_from_older_app_version_is_dropped(demo_dir, monkeypatch):
     at.run()
     assert not at.exception
     assert any("updated since you last ranked" in i.value for i in at.info)
+
+
+def test_client_detail_shows_margin_trend_and_forecast(demo_dir, monkeypatch):
+    """D-34: the forecast is on the screen, with its typical error measured on the loaded data."""
+    monkeypatch.setenv("CLIENTPROFIT_DEMO_DIR", str(demo_dir))
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.run()
+    at.radio[0].set_value("Use demo data (generated)").run()
+    [b for b in at.button if b.label == "Rank clients"][0].click().run()
+    assert not at.exception
+    assert any("Margin trend and next quarter" in m.value for m in at.markdown)
+    assert any("Next quarter, if nothing changes" in c.value and "off by" in c.value for c in at.caption)

@@ -1,7 +1,7 @@
 """Client-month features and forecast targets (D-21). Uses only data up to each month.
 
-Margin here is operating margin: (revenue - labour cost) / revenue. Late-payment
-cost is left out because a month's late cost depends on payments made later,
+Margin here is operating margin: (revenue - direct cost - labour cost) / revenue
+(direct cost per D-31; 0 when the data has none). Late-payment cost is left out because a month's late cost depends on payments made later,
 which would leak the future into the features.
 """
 import numpy as np
@@ -12,7 +12,11 @@ WINDOW = 3
 
 def _monthly(result):
     """Complete month grid per client (first to last active month) with sums."""
-    cm = result["client_month"][["client", "month", "revenue", "labour_cost", "hours"]]
+    cm = result["client_month"]
+    cm = cm.assign(direct_cost=cm["direct_cost"] if "direct_cost" in cm else 0.0)
+    # D-31: direct costs count with labour, so "cost" below is everything except late payment.
+    cm = cm.assign(labour_cost=cm["labour_cost"] + cm["direct_cost"].fillna(0.0))
+    cm = cm[["client", "month", "revenue", "labour_cost", "hours"]]
     te = result["time_costed"]
     nb = te[te["billable"] == False].groupby(["client", "month"])["hours"].sum().rename("nonbill_hours")  # noqa: E712
     req = result["tables"].get("requests")
