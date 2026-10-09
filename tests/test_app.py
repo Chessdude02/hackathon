@@ -58,10 +58,10 @@ def test_ranked_list_has_actions_and_asks_before_long_labelling(demo_dir, monkey
     assert {"Suggested action", "Effect per year", "Profit (last 3 mo)", "Contribution (12 mo)",
             "Heading to a loss"} <= set(ranked.columns)
     # D-36 reconciliation line; $ escaped so Streamlit does not draw it as a maths formula
-    assert any("contribution \\$" in c.value and "= profit \\$" in c.value for c in at.caption)
-    rows = [d.value for d in at.dataframe if "Row" in d.value.columns]
+    assert any("contribution \\$" in c.value and "equals profit \\$" in c.value for c in at.caption)
+    rows = [d.value for d in at.dataframe if "Row in file" in d.value.columns]
     assert rows and all("_src_row" not in d.columns for d in rows)
-    dates = rows[0].iloc[:, 2].astype(str)
+    dates = rows[0].iloc[:, 1].astype(str)
     assert not dates.str.contains("00:00:00").any()
     # Fresh data: about 2,600 unsaved messages, above the public limit, so no AI calls at all (D-35)
     assert not any(b.label == "Label them now" for b in at.button)
@@ -107,3 +107,27 @@ def test_client_detail_shows_margin_trend_and_action_effect(demo_dir, monkeypatc
     assert not at.exception
     assert any("Margin trend and the effect of the suggested action" in m.value for m in at.markdown)
     assert any("Next quarter if nothing changes" in c.value and "not predictions" in c.value for c in at.caption)
+
+
+SYMBOLS = set("—–−×→←…✅💲✂️🛑⚠ℹ⏱💬•★✨")
+
+
+def test_screen_has_no_underscores_or_symbols(demo_dir, monkeypatch):
+    """Everything a person reads is plain words: no internal names with underscores, no emoji or
+    typographic symbols, on every part of the demo flow including the problems list and client detail."""
+    monkeypatch.setenv("CLIENTPROFIT_DEMO_DIR", str(demo_dir))
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.run()
+    at.radio[0].set_value("Use demo data (generated)").run()
+    [b for b in at.button if b.label == "Rank clients"][0].click().run()
+    assert not at.exception
+    texts = [e.value for kind in ("title", "header", "subheader", "markdown", "caption", "info", "warning", "error")
+             for e in getattr(at, kind)]
+    texts += [e.label for e in list(at.selectbox) + list(at.button) + list(at.checkbox) + list(at.radio)
+              + list(at.number_input) + list(at.expander)]
+    texts += [str(o) for sb in at.selectbox for o in sb.options]
+    for df in at.dataframe:
+        texts += [str(c) for c in df.value.columns]
+        texts += [str(v) for col in df.value.columns if df.value[col].dtype == object for v in df.value[col]]
+    bad = [t for t in texts if "_" in t or SYMBOLS & set(t)]
+    assert not bad, bad[:5]

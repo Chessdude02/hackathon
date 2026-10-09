@@ -24,7 +24,7 @@ def _unreadable(tables):
             rows = df.loc[df[col].isna(), SRC_ROW].tolist()
             if rows:
                 out.append(_problem("empty_or_unreadable", ERROR, table, rows,
-                                    f"'{col}' is empty or could not be read in {len(rows)} row(s)",
+                                    f"'{col.replace('_', ' ')}' is empty or could not be read in {len(rows)} row(s)",
                                     suggest_exclude=True))
         for col in schema.TABLES.get(table, {}):
             if col in schema.VALUE_REQUIRED.get(table, ()) or col in ("paid_date", "due_date", "billable",
@@ -33,7 +33,7 @@ def _unreadable(tables):
             rows = df.loc[df[col].isna(), SRC_ROW].tolist() if col in df.columns else []
             if rows:
                 out.append(_problem("optional_value_empty", INFO, table, rows,
-                                    f"'{col}' is empty in {len(rows)} row(s); not needed for profit"))
+                                    f"'{col.replace('_', ' ')}' is empty in {len(rows)} row(s); not needed for profit"))
     te = tables.get("time_entries")
     if te is not None:
         rows = te.loc[te["billable"].isna() & te["hours"].notna(), SRC_ROW].tolist()

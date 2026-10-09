@@ -23,7 +23,14 @@ ASK_BEFORE_LABELLING = 200   # more new messages than this: show the time and as
 MAX_LIVE_LABELS = 500        # more new messages than this: keyword rule only, no AI calls
 MAX_LIVE_EXPLANATIONS = 25   # new AI explanations per session; saved ones do not count
 SECONDS_PER_MESSAGE = 0.8    # measured 2026-10-06, 2 calls at a time (D-15)
-ACTION_ICON = {recommend.KEEP: "✅", recommend.RAISE: "💲", recommend.CUT: "✂️", recommend.END: "🛑"}
+TABLE_NAMES = {"invoices": "Invoices", "time_entries": "Time entries", "requests": "Client requests",
+               "clients": "Clients and services", "all": "all files"}
+IGNORE_LABEL = "(not used)"
+
+
+def nice(name):
+    """Plain words for an internal table or column name: no underscores on the screen."""
+    return TABLE_NAMES.get(name, str(name).replace("_", " "))
 DEMO = Path(os.environ.get("CLIENTPROFIT_DEMO_DIR", ROOT / "data" / "generated"))
 DEMO_SEED = 42           # the saved labels and explanations were made from seed 42 (D-15, D-26)
 DEMO_CLIENTS = 50
@@ -77,17 +84,18 @@ def mapping_editor(loaded):
         columns = {**schema.TABLES, **schema.OPTIONAL_TABLES}[table]
         options = [IGNORE] + list(columns)
         missing = ingest.missing_required(item["mapping"], table)
-        with st.expander(f"{item['src_file']} → {table}" + (f"  (missing: {', '.join(missing)})" if missing else ""),
+        with st.expander(nice(table) + (f" (missing: {', '.join(nice(m) for m in missing)})" if missing else ""),
                          expanded=bool(missing)):
             cols = st.columns(3)
             for i, header in enumerate(item["raw"].columns):
                 current = item["mapping"].get(header) or IGNORE
                 choice = cols[i % 3].selectbox(header, options, index=options.index(current),
-                                               key=f"map_{table}_{header}")
+                                               key=f"map_{table}_{header}",
+                                               format_func=lambda o: IGNORE_LABEL if o == IGNORE else nice(o))
                 item["mapping"][header] = None if choice == IGNORE else choice
             missing = ingest.missing_required(item["mapping"], table)
             if missing:
-                st.error(f"Map a column to: {', '.join(missing)}")
+                st.error(f"Map a column to: {', '.join(nice(m) for m in missing)}")
                 ok = False
     return ok
 
@@ -98,7 +106,7 @@ def settings_editor(cfg, staff_names, costs):
     s["overhead_per_year"] = c1.number_input(
         "Shared overhead per year ($)", 0.0, 1e8, float(cfg.get("overhead_per_year", 0)), 1000.0,
         help="Rent, software, admin salaries, insurance: costs no single client causes. Split by logged hours. "
-             "Leave at 0 to use the overhead multiplier instead (D-36).")
+             "Leave at 0 to use the overhead multiplier instead.")
     s["overhead_multiplier"] = c1.number_input("Overhead multiplier (used when overhead per year is 0)", 1.0, 5.0,
                                                float(cfg["overhead_multiplier"]), 0.05)
     s["target_margin"] = c2.number_input("Target margin", 0.0, 0.95, float(cfg["target_margin"]), 0.05)
@@ -110,25 +118,27 @@ def settings_editor(cfg, staff_names, costs):
     s["min_months_for_ranking"] = int(c3.number_input("Months of data needed to rank", 1, 24,
                                                       cfg["min_months_for_ranking"]))
     known = {**cfg["staff_costs"], **costs}
-    table = pd.DataFrame({"staff": staff_names, "hourly_cost": [known.get(n) for n in staff_names]})
+    table = pd.DataFrame({"Staff": staff_names, "Hourly cost": [known.get(n) for n in staff_names]})
     st.caption("Hourly cost per staff member (what each hour costs you, before overhead)")
-    edited = st.data_editor(table, disabled=["staff"], hide_index=True, key="staff_costs",
+    edited = st.data_editor(table, disabled=["Staff"], hide_index=True, key="staff_costs",
                             width="stretch")
-    s["staff_costs"] = {r.staff: float(r.hourly_cost) for r in edited.itertuples() if pd.notna(r.hourly_cost)}
+    s["staff_costs"] = {name: float(cost) for name, cost in zip(edited["Staff"], edited["Hourly cost"])
+                        if pd.notna(cost)}
     return s
 
 
 def problems_panel(problems):
     """Show problems; return the rows the owner chose to exclude."""
     exclusions = {}
-    icons = {"error": "🛑", "warning": "⚠️", "info": "ℹ️"}
+    icons = {"error": "Error:", "warning": "Warning:", "info": "Note:"}
     counts = {sev: sum(p["severity"] == sev for p in problems) for sev in icons}
     title = f"Problems found: {counts['error']} errors, {counts['warning']} warnings, {counts['info']} notes"
     with st.expander(title, expanded=counts["error"] > 0):
         for i, p in enumerate(problems):
-            st.markdown(f"{icons[p['severity']]} **{p['check'].replace('_', ' ')}** ({p['table']}): {p['message']}")
+            st.markdown(f"{icons[p['severity']]} **{p['check'].replace('_', ' ')}** ({nice(p['table']).lower()}): "
+                        + md(p["message"]))
             if p["rows"]:
-                st.caption(f"Rows: {', '.join(map(str, p['rows'][:30]))}{' …' if len(p['rows']) > 30 else ''}")
+                st.caption(f"Rows: {', '.join(map(str, p['rows'][:30]))}{' and more' if len(p['rows']) > 30 else ''}")
             if p["rows"] and p["severity"] != "info":
                 if st.checkbox(f"Exclude these {len(p['rows'])} row(s)", value=p["suggest_exclude"], key=f"ex_{i}"):
                     exclusions.setdefault(p["table"], []).extend(p["rows"])
@@ -151,8 +161,8 @@ def ranked_table(result, recs):
         "Margin": r["margin_last_12m"].map(lambda v: "" if pd.isna(v) else f"{v:.0%}"),
         "Profit (last 3 mo)": r["profit_3m"].map(money),
         "Losing money": r["loss_making"].map({True: "Yes", False: ""}),
-        "Heading to a loss": r["heading_to_loss"].map({True: "⚠️ Yes", False: ""}),
-        "Suggested action": [f"{ACTION_ICON.get(a, '')} {a}" for a in r["action"]],
+        "Heading to a loss": r["heading_to_loss"].map({True: "Yes", False: ""}),
+        "Suggested action": r["action"],
         "Effect per year": [money(v) if a != recommend.KEEP else "" for a, v in zip(r["action"],
                                                                                    r["dollar_effect_per_year"])],
         "Profit if overdue never paid": r["profit_if_overdue_unpaid"].map(money),
@@ -166,7 +176,7 @@ def ranked_view(result, recs):
                "assume the same workload and that the client accepts the change. You decide; nothing is "
                "sent to clients.")
     st.warning("These figures assume your time logs are complete. If staff log fewer hours than they "
-               "really work, every client looks more profitable than it is.", icon="⏱️")
+               "really work, every client looks more profitable than it is.")
     slot = st.empty()
     slot.dataframe(ranked_table(result, recs), hide_index=True, width="stretch")
     st.caption(overhead_note(result).replace("$", "\\$"))  # else Streamlit reads $...$ as maths
@@ -178,7 +188,7 @@ def overhead_note(result):
     o, rk = result.get("overhead", {}), result["ranked"]
     how = (f"your {money(o['per_year'])} a year of shared overhead, split by logged hours "
            f"(${o['rate_per_hour']:,.2f} an hour)" if o.get("rate_per_hour") is not None
-           else f"staff cost × {o.get('multiplier', 1):.2f} as an estimate of shared overhead (enter your real "
+           else f"staff cost times {o.get('multiplier', 1):.2f} as an estimate of shared overhead (enter your real "
                 "yearly overhead in Settings to replace it)")
     contribution, overhead = rk["contribution_last_12m"].sum(), rk["overhead_last_12m"].sum()
     other = result["unranked"]["overhead_last_12m"].sum() if len(result["unranked"]) else 0.0
@@ -186,7 +196,7 @@ def overhead_note(result):
             f"what you would lose without it. Profit also takes off its share of overhead, using {how}. "
             f"'End the contract' and 'cut scope' use contribution, because shared overhead stays when "
             f"a client or its work goes; 'raise price' uses profit. Ranked clients, last 12 months: "
-            f"contribution {money(contribution)} − overhead {money(overhead)} = profit "
+            f"contribution {money(contribution)} minus overhead {money(overhead)} equals profit "
             f"{money(contribution - overhead)}."
             + (f" Clients not ranked carry the other {money(other)} of overhead." if round(other) else ""))
 
@@ -220,7 +230,7 @@ def scope_section(result, cfg):
             st.session_state.label_go = True
             st.rerun()
         return None
-    bar = st.progress(0.0, text=f"Labelling {new} new messages…")
+    bar = st.progress(0.0, text=f"Labelling {new} new messages...")
     labels = detector.label_requests(
         req, services, progress=lambda d, n: bar.progress(d / n if n else 1.0, text=f"Labelled {d} of {n} new messages"))
     bar.empty()
@@ -238,6 +248,14 @@ def labels_summary(labels):
                + (f"; {fallback} used the keyword rule because the AI was unavailable." if fallback else "."))
 
 
+def plain(text):
+    """Text from the AI, without the dashes and typographic symbols that make it read as machine-written."""
+    for a, b in ((" — ", ", "), ("—", ", "), (" – ", ", "), ("–", "-"), ("−", "-"), ("’", "'"), ("‘", "'"),
+                 ("“", '"'), ("”", '"'), ("…", "...")):
+        text = str(text).replace(a, b)
+    return text
+
+
 def md(text):
     return explain.escape_markdown(text)
 
@@ -247,10 +265,9 @@ EFFECT_WORDS = {recommend.RAISE: "+{} profit a year", recommend.CUT: "saves {} a
 
 
 def recommendation_box(rec):
-    icon = ACTION_ICON.get(rec["action"], "")
     words = EFFECT_WORDS.get(rec["action"])
     effect = f" ({words.format(money(rec['dollar_effect_per_year']))})" if words else ""
-    st.markdown(f"#### {icon} " + md(f"Suggested action: {rec['action']}{effect}"))
+    st.markdown("#### " + md(f"Suggested action: {rec['action']}{effect}"))
     st.markdown(md(rec["why"]))
     if isinstance(rec.get("alternative"), str) and rec["alternative"]:
         st.markdown("**" + md(rec["alternative"]) + "**")
@@ -266,14 +283,14 @@ def explanation_box(rec, totals, cfg):
     key = ("explanation", rec["client"], rec["action"], round(rec["dollar_effect_per_year"], 2))
     if key not in st.session_state:
         used = st.session_state.get("live_explanations", 0)
-        with st.spinner("Writing a plain-language explanation…"):
+        with st.spinner("Writing a plain-language explanation..."):
             st.session_state[key] = explain.write_explanation(
                 rec, totals, cfg["llm"]["model"], cfg["llm"]["provider"], store=session_store("explanations"),
                 allow_llm=used < MAX_LIVE_EXPLANATIONS)
         if st.session_state[key]["source"] == "llm" or st.session_state[key].get("error"):
             st.session_state.live_explanations = used + 1
     out = st.session_state[key]
-    st.info(md(out["text"]), icon="💬")
+    st.info(md(plain(out["text"])))
     if out["source"] == "template":
         reason = ("the AI was unavailable" if out.get("error")
                   else f"this session reached its limit of {MAX_LIVE_EXPLANATIONS} AI explanations"
@@ -322,7 +339,7 @@ def trend_box(result, rec, settings):
         return
     st.markdown("**Margin trend and the effect of the suggested action**")
     target = settings["target_margin"]
-    names = ["Margin, last 3 months", "Next quarter if nothing changes", "Next quarter after the suggested action"]
+    names = ["Margin, last 3 months", "If nothing changes", "After the suggested action"]
     rows = [{"date": m.end_time.strftime("%Y-%m-01"), "margin": v, "series": names[0]}
             for m, v in zip(hist["month"], hist["margin"])]
     nxt = (hist["month"].max() + 2).end_time.strftime("%Y-%m-01")  # middle of next quarter
@@ -332,8 +349,13 @@ def trend_box(result, rec, settings):
         points.append({"date": nxt, "margin": now, "series": names[1]})
     if after is not None and after == after and rec["action"] != recommend.KEEP:
         points.append({"date": nxt, "margin": after, "series": names[2]})
+    # the legend lists only what is drawn: a client to keep has no "after" point
+    shown = [n for n, c in zip(names, ["#1f77b4", "#9e9e9e", "#2ca02c"])
+             if n == names[0] or any(p["series"] == n for p in points)]
+    palette = dict(zip(names, ["#1f77b4", "#9e9e9e", "#2ca02c"]))
     color = {"field": "series", "type": "nominal", "title": None,
-             "scale": {"domain": names, "range": ["#1f77b4", "#9e9e9e", "#2ca02c"]}}
+             "legend": {"orient": "bottom", "labelLimit": 400},
+             "scale": {"domain": shown, "range": [palette[n] for n in shown]}}
     x = {"field": "date", "type": "temporal", "title": None, "axis": {"format": "%b %Y"}}
     y = {"field": "margin", "type": "quantitative", "axis": {"format": "%"}, "title": "Margin"}
     st.vega_lite_chart({
@@ -358,7 +380,7 @@ def trend_box(result, rec, settings):
     st.caption(f"Grey dashed line: your {target:.0%} target. Next quarter if nothing changes: "
                + (f"{now:.0%} (the last 3 months). " if now is not None and now == now else "no revenue to compare. ")
                + effect + " These are not predictions: we tested forecasting models and none beat "
-               "'the next quarter looks like the last one' (D-06), so the chart shows the trend and what "
+               "'the next quarter looks like the last one', so the chart shows the trend and what "
                "the suggested action would change, at the current workload.")
 
 
@@ -391,13 +413,13 @@ def client_detail(result, recs, labels, cfg):
     te_rows = te[(te["client"] == client) & te[schema.SRC_ROW].isin(row["time_rows"])]
     st.markdown("Invoices")
     st.dataframe(readable(inv_rows, {
-        schema.SRC_FILE: "File", schema.SRC_ROW: "Row", "invoice_date": "Invoice date", "amount": "Amount",
+        schema.SRC_ROW: "Row in file", "invoice_date": "Invoice date", "amount": "Amount",
         "due": "Due", "paid_date": "Paid", "days_late": "Days late", "late_cost": "Late payment cost",
         **({"direct_cost": "Direct cost"} if has_direct_costs(result) else {})}),
         hide_index=True, width="stretch")
     st.markdown("Time entries")
     st.dataframe(readable(te_rows, {
-        schema.SRC_FILE: "File", schema.SRC_ROW: "Row", "work_date": "Date", "staff": "Staff", "hours": "Hours",
+        schema.SRC_ROW: "Row in file", "work_date": "Date", "staff": "Staff", "hours": "Hours",
         "hourly_cost": "Hourly cost", "labour_cost": "Labour cost (with overhead)", "billable": "Billable"}),
         hide_index=True, width="stretch")
     req = result["tables"].get("requests")
@@ -426,9 +448,9 @@ def main():
             st.session_state.source = "demo"
     else:
         c = st.columns(5)
-        files = {t: c[i].file_uploader(f"{t}.csv" + ("" if t in REQUIRED_FILES else " (optional)"), type="csv")
+        files = {t: c[i].file_uploader(nice(t) + (" (CSV)" if t in REQUIRED_FILES else " (CSV, optional)"), type="csv")
                  for i, t in enumerate(pipeline.TABLE_FILES)}
-        staff_file = c[4].file_uploader("staff costs (optional)", type="csv")
+        staff_file = c[4].file_uploader("Staff costs (CSV, optional)", type="csv")
         if not all(files[t] is not None for t in REQUIRED_FILES):
             st.info("Upload invoices and time entries to start. Client requests and services are optional: "
                     "they add scope-creep signals but the ranking works without them.")
