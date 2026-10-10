@@ -50,6 +50,7 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 | D-36 | 2026-10-08 | Separate contribution from shared overhead; real overhead rate; "end" and "cut" use contribution | Assumed | Yes (seed 42, 8 seeds) |
 | D-37 | 2026-10-08 | Replace the on-screen forecast with "if nothing changes" vs "after the suggested action" | Assumed | Partly (tests, screenshot) |
 | D-38 | 2026-10-08 | Reject broken LLM explanations (garbage without numbers); retry once | Assumed | Yes (benchmark 6) |
+| D-39 | 2026-10-10 | Add a story-first screen (app_story.py) from a teammate | Assumed | Partly (tests, browser check) |
 
 ---
 
@@ -748,6 +749,22 @@ Status values: `Confirmed` (the team agreed), `Assumed` (nobody has agreed yet),
 - **Actual measured effect:** Before: 8 of 97 saved texts broken. After regenerating with the check (`python scripts/run_benchmarks.py`, 2026-10-08): 48 texts written, 0 rejected as broken, 0 with invented numbers, 0 shown broken; 48 of 48 demo clients have a clean saved text (shortest 40 words); 0 broken texts left in the file. Unseen seed 104, 15 clients (5 per action present), written fresh and not saved: 15 by the LLM, 0 first replies broken, 0 invented numbers, shortest 41 words. The garbage replies are intermittent, so the check could not be exercised live on unseen data; the tests cover it with a fake provider. Later the same day the explanation for Lakeshore Clinic called its −18% margin after overhead a "contribution margin" (its contribution is positive); the number check cannot catch a mislabelled correct number. The fact was relabelled "Profit margin over the last 3 months, after shared overhead (not the contribution)" (prompt explain-v3) and all 48 regenerated: 0 invented numbers, 0 texts calling a negative margin a contribution margin, and the broken check fired once for real (Brightside Studios: garbage on both tries, fixed wording shown, not saved); a later single retry for that client gave a clean text, so 48 of 48 demo clients have one. The screen now says "the AI's reply was unreadable" for that case.
 - **Evidence:** `out/benchmarks.json` section 6 (2026-10-08), the scan of `labels/saved_explanations.json`, `tests/test_explain.py` (`test_looks_broken`, `test_broken_reply_is_retried_then_replaced_and_never_saved`, `test_broken_text_already_saved_is_not_shown`).
 - **Related decisions:** D-26, D-36
+
+## D-39: Add a story-first screen (app_story.py) from a teammate
+- **ID:** D-39
+- **Date:** 2026-10-10
+- **Status:** Assumed
+- **Context:** A teammate's copy of the repo (`hackathon-latest.zip`) was identical to ours except for a new `app_story.py` and a regenerated call graph. `app_story.py` shows the same results in story order: four headline numbers and the client with the biggest gap between revenue and profit, a revenue-vs-profit scatter chart, the clients that need a decision (worst first), then client detail opening on the worst client. The demo ranks itself; data, settings and problems sit in a collapsed panel.
+- **Options considered:**
+  1. Keep only `app.py`.
+  2. Add `app_story.py` beside `app.py`, unchanged in its calculations (it calls the same pipeline and rules), with its own tests.
+- **Decision:** Option 2, asked for by the team lead on 2026-10-10. One fix on import: the month table passed text to a dollar-formatted column when the data has direct costs. The call graph was regenerated, not copied. Which file the live app runs is the team lead's choice (Streamlit main file setting).
+- **Factors that led to it:** The story order puts the finding first, which suits a judge or an owner seeing the tool for the first time.
+- **Trade-offs accepted:** Much of `app.py` is repeated in `app_story.py`, so a later change must be made in both.
+- **Expected effect:** A clearer first impression without changing any number.
+- **Actual measured effect:** `tests/test_app_story.py` (5 tests): the demo tells the story without a click; the headline numbers equal an independent pipeline run; the decision table is worst first and client detail opens on its first client; re-ranking with a 10% target works; no underscores or symbols on screen. Browser check 2026-10-10: demo page renders (15 of 48 losing, $311,566, 29 needing a decision, $197,852); an upload with direct costs (bakehouse data) ranks without errors and names Summit Foods.
+- **Evidence:** The tests above and the browser check, 2026-10-10.
+- **Related decisions:** D-28, D-35, D-36, D-37
 
 ---
 

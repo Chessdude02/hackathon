@@ -28,6 +28,7 @@ How the code runs. This file must match the actual code at all times.
 | Install | `pip install -r requirements.txt` |
 | Create generated data | `python scripts/generate_data.py --out data/generated --seed 42` (optional: `--truth data/truth`, `--clients 50`) |
 | Run the app | `streamlit run app.py` (verified) |
+| Run the story-first screen | `streamlit run app_story.py` (verified 2026-10-10; same calculations, different order: finding, revenue vs profit chart, what to do, then the proof; D-39) |
 | Run the pipeline with no screen | `python scripts/run_pipeline.py --data data/generated --out out/` (verified; optional `--exclude-suggested`, `--config`; also writes `recommendations.csv`, without labels) |
 | Run all benchmarks | `python scripts/run_benchmarks.py --data data/generated --out out/benchmarks.json` (verified; also `--truth`, `--seeds`) |
 | Label requests ahead of time | `python scripts/label_requests.py --data data/generated` (verified; `--limit`, `--detector`, `--no-services`, `--store`, `--out`) |

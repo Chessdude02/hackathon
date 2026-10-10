@@ -84,7 +84,8 @@ Diagram: `docs/architecture.md`. In short:
 
 ```
 pip install -r requirements.txt
-streamlit run app.py
+streamlit run app.py          # step-by-step screen
+streamlit run app_story.py    # story-first screen: the finding first, the proof last
 ```
 
 Choose "Use demo data". If `data/generated` is missing, the app builds it on
