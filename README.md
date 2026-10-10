@@ -155,6 +155,8 @@ Full list, including what is not protected: `SECURITY.md`.
 
 ## Docs
 
+- `SUBMISSION.md`: the hackathon submission, ready to copy into Devpost; screenshots in `docs/screenshots/`.
+
 - `docs/project_overview.md`: what it does, results, implications, limits.
 - `docs/architecture.md`: diagram of the parts.
 - `docs/decisions.md`: every decision, options considered, measured effect.
